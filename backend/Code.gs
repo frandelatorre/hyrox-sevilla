@@ -12,7 +12,7 @@ const TZ = 'Europe/Madrid';
 
 // Versión del texto de consentimiento (aviso del formulario + email de confirmación). Súbela cada vez que lo cambies:
 // queda guardada junto a la fecha de cada confirmación como prueba de qué aceptó cada persona.
-const CONSENT_VERSION = '2026-10-v1';
+const CONSENT_VERSION = '2026-10-v2';
 
 const T = {
   SUBS: 'Suscriptores',

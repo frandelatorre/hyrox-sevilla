@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,600;0,800;1,800&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="../assets/css/styles.css?v=3">
+<link rel="stylesheet" href="../assets/css/styles.css?v=4">
 </head>
 <body>
 <header class="site-header"><div class="wrap">
@@ -26,10 +26,10 @@
 </div></div>
 </main>
 <footer class="site-footer"><div class="wrap">
-  <p class="legal">© <span data-year>2026</span> Ritmo Híbrido. Web independiente, sin relación con HYROX World GmbH ni con sus eventos oficiales. <a href="../legal/">Aviso legal</a></p>
+  <p class="legal">© <span data-year>2026</span> Ritmo Híbrido.com. Web independiente, sin relación con HYROX World GmbH ni con sus eventos oficiales. <a href="../aviso-legal/">Aviso legal</a></p>
 </div></footer>
-<script src="../assets/js/config.js?v=3"></script>
-<script src="../assets/js/main.js?v=3"></script>
+<script src="../assets/js/config.js?v=4"></script>
+<script src="../assets/js/main.js?v=4"></script>
 <script>
 
 (async () => {
@@ -41,7 +41,7 @@
     if (out === null) return show('Modo <span class="a">demostración</span>', 'Aún no hay backend conectado, así que no hay nada que confirmar.', '<a class="btn" href="../">Volver al inicio</a>');
     if (out.ok) {
       show('Email <span class="a">confirmado</span>',
-        'Ya puedes descargar tu plan. Te lo hemos enviado también por email. Una vez al mes te escribiremos con novedades y ofertas; puedes darte de baja con un clic desde cualquier mensaje.',
+        'Ya puedes descargar tu plan. Te lo hemos enviado también por email. De vez en cuando te escribiremos con novedades y ofertas; puedes darte de baja con un clic desde cualquier mensaje.',
         '<a class="btn" href="' + out.plan + '" download>Descargar el plan (PDF)</a><a class="btn sec" href="../calendario/">Ver calendario</a>');
     } else {
       show('Enlace <span class="a">no válido</span>', 'Este enlace ha caducado o no es correcto. Si quieres el plan, vuelve a pedirlo con tu email.', '<a class="btn" href="../plan/">Pedir el plan</a>');

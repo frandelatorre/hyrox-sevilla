@@ -150,7 +150,7 @@
     },
 
     emails(s) {
-      return '<h2>Emails</h2><p class="sub">Campañas mensuales. Se editan en la hoja «Campañas» de Google Sheets.</p>' +
+      return '<h2>Emails</h2><p class="sub">Campañas de email. Se editan en la hoja «Campañas» de Google Sheets.</p>' +
         table('Campañas', ['Fecha', 'Asunto', 'Estado', 'Segmento', 'Publi', 'Destinatarios', 'Enviados', 'Pendientes', 'Errores'],
           s.emails.map(e => [e.fecha, e.asunto, { html: stateChip(e.estado) }, e.segmento, e.publi ? 'Sí' : 'No', e.destinatarios, e.enviados, e.pendientes, e.errores]), { numeric: [5, 6, 7, 8] });
     },

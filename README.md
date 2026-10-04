@@ -13,7 +13,7 @@ Web estática: HTML, CSS y JavaScript sin dependencias ni paso de compilación.
 | `calendario/` | Carreras de la temporada en España |
 | `plan/` | Plan de 16 semanas y alta por email |
 | `gimnasios/` | Directorio por ciudad |
-| `legal/` | Aviso legal (provisional) |
+| `aviso-legal/`, `privacidad/`, `cookies/` | Páginas legales (titular, privacidad y cookies) |
 | `confirmar/`, `baja/` | Páginas a las que llegan los enlaces de los emails (confirmar y darse de baja) |
 | `panel-1e97356f51be/` | Panel de estadísticas con contraseña (no indexado) |
 | `backend/` | Google Apps Script: formulario, emails y datos. Ver `backend/README.md` |

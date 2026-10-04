@@ -133,7 +133,7 @@ td b{font-family:var(--cond);font-size:20px;text-transform:uppercase}
 
 /* Prosa */
 .prose{max-width:760px}
-.prose h2{margin:48px 0 16px}
+.prose h2{margin:44px 0 14px;font-size:clamp(28px,3.4vw,38px)}
 .prose h3{margin:32px 0 10px}
 .prose p,.prose li{color:#C9CFD8;font-size:17px;margin-bottom:14px}
 .prose ul{padding-left:22px}

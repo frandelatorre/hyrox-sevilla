@@ -128,7 +128,7 @@ async function run() {
   check('confirmar no envía datos a nadie más: todos los emails van a la propia persona', G.sent.every(m => m.to === 'ana@example.com') && table_(T.LEADS).rows.length === 0);
   const n = G.sent.length; post({ action: 'confirm', token: tok });
   check('confirmar dos veces no repite emails', G.sent.length === n);
-  check('la bienvenida con consentimiento menciona el email mensual', /una vez al mes|cada mes/.test(G.sent.find(m => /plan de 16 semanas/.test(m.subject)).htmlBody));
+  check('la bienvenida avisa de que habrá comunicaciones, sin fijar frecuencia', /de vez en cuando/.test(G.sent.find(m => /plan de 16 semanas/.test(m.subject)).htmlBody));
 
   // --- Baja y re-alta
   r = post({ action: 'unsub', token: tok });
@@ -140,7 +140,7 @@ async function run() {
   const cs = subs().find(s => s.email === 'ana@example.com');
   check('al confirmar queda registrado el consentimiento (SI + versión del texto + fecha)', cs.marketing === 'SI' && cs.consentimiento === CONSENT_VERSION && cs.fecha_confirmacion instanceof Date, JSON.stringify(cs));
   G.cache = {}; post(form({ email: 'pend2@example.com' }));
-  check('antes de confirmar no se le envía nada comercial: solo la confirmación', G.sent.filter(m => m.to === 'pend2@example.com').length === 1 && /Confirma tu email/.test(lastMail().subject) && /una vez al mes/.test(lastMail().htmlBody));
+  check('antes de confirmar no se le envía nada comercial: solo la confirmación', G.sent.filter(m => m.to === 'pend2@example.com').length === 1 && /Confirma tu email/.test(lastMail().subject) && /comunicaciones informativas y comerciales/.test(lastMail().htmlBody));
   G.cache = {}; post(form({ email: 'inj@example.com', origen: '=HYPERLINK("http://x","y")' }));
   const inj = subs().find(s => s.email === 'inj@example.com');
   const raw = G.sheets['Suscriptores'].rows.find(r => r[2] === 'inj@example.com');
