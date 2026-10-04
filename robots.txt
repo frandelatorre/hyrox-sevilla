@@ -2,5 +2,8 @@ User-agent: *
 Disallow: /propuestas/
 Disallow: /legal/
 Disallow: /recursos/
+Disallow: /confirmar/
+Disallow: /baja/
+Disallow: /backend/
 
 Sitemap: https://ritmohibrido.com/sitemap.xml

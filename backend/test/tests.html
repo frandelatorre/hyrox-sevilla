@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><meta name="robots" content="noindex"><title>Pruebas del backend</title>
+<style>body{font:14px/1.5 system-ui;margin:24px;background:#111;color:#eee}.ok{color:#5be28a}.ko{color:#ff6b6b}pre{white-space:pre-wrap}</style>
+</head><body>
+<h1>Pruebas del backend (simulador de Google Apps Script)</h1>
+<p>Abre esta página con el servidor local en marcha. Carga <code>../Code.gs</code>, <code>../Mail.gs</code> y <code>../Stats.gs</code> y los ejecuta contra un simulador de hojas y correo.</p>
+<pre id="out">Ejecutando…</pre>
+<script>
+/* ----------------------- Simulador mínimo de Google Apps Script ----------------------- */
+const chain = () => new Proxy(function () {}, { get: (_, k) => (k === 'then' ? undefined : chain()), apply: () => chain() });
+
+class Sheet {
+  constructor(name) { this.name = name; this.rows = []; }
+  getName() { return this.name; }
+  getLastRow() { return this.rows.length; }
+  getLastColumn() { return this.rows.reduce((m, r) => Math.max(m, r.length), 0); }
+  getDataRange() { return this.getRange(1, 1, Math.max(1, this.getLastRow()), Math.max(1, this.getLastColumn())); }
+  appendRow(a) { this.rows.push(a.slice()); }
+  getRange(r, c, nr = 1, nc = 1) { return rangeProxy(new Range(this, r, c, nr, nc)); }
+  setFrozenRows() {} setColumnWidth() {}
+}
+class Range {
+  constructor(sh, r, c, nr, nc) { Object.assign(this, { sh, r, c, nr, nc }); }
+  getValues() { const o = []; for (let i = 0; i < this.nr; i++) { const row = []; for (let j = 0; j < this.nc; j++) { const v = (this.sh.rows[this.r - 1 + i] || [])[this.c - 1 + j]; row.push(v === undefined ? '' : v); } o.push(row); } return o; }
+  setValues(v) { v.forEach((row, i) => row.forEach((x, j) => this._set(this.r - 1 + i, this.c - 1 + j, x))); return this._self; }
+  getValue() { return this.getValues()[0][0]; }
+  setValue(x) { this._set(this.r - 1, this.c - 1, x); return this._self; }
+  _set(i, j, x) { while (this.sh.rows.length <= i) this.sh.rows.push([]); const row = this.sh.rows[i]; while (row.length <= j) row.push(''); row[j] = typeof x === 'string' && x[0] === "'" ? x.slice(1) : x; }
+  getRow() { return this.r; } getColumn() { return this.c; } getSheet() { return this.sh; }
+}
+const rangeProxy = r => (r._self = new Proxy(r, { get: (t, k) => (k in t ? (typeof t[k] === 'function' ? t[k].bind(t) : t[k]) : (k === 'then' ? undefined : () => t._self)) }));
+
+const G = {
+  sheets: {}, sent: [], quota: 100, props: {}, cache: {}, triggers: [], now: null,
+  reset() { this.sheets = {}; this.sent = []; this.quota = 100; this.props = {}; this.cache = {}; this.triggers = []; },
+};
+const SpreadsheetApp = {
+  getActive: () => ({
+    setSpreadsheetTimeZone() {},
+    getSheetByName: n => G.sheets[n] || null,
+    insertSheet: n => (G.sheets[n] = new Sheet(n)),
+    getSheets: () => Object.values(G.sheets),
+    deleteSheet(s) { delete G.sheets[s.name]; },
+  }),
+  getUi: () => chain(), newDataValidation: () => chain(),
+};
+const MailApp = {
+  getRemainingDailyQuota: () => G.quota - G.sent.length,
+  sendEmail(o) { if (G.failFor && o.to === G.failFor) throw new Error('Dirección inválida'); G.sent.push(o); },
+};
+const Utilities = {
+  getUuid: () => crypto.randomUUID(),
+  formatDate(d, tz, f) {
+    const p = {}; new Intl.DateTimeFormat('en-GB', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false }).formatToParts(d).forEach(x => (p[x.type] = x.value));
+    return f.replace('yyyy', p.year).replace('MM', p.month).replace('dd', p.day).replace('HH', p.hour).replace('mm', p.minute);
+  },
+};
+const CacheService = { getScriptCache: () => ({ get: k => G.cache[k] || null, put: (k, v) => { G.cache[k] = v; }, remove: k => { delete G.cache[k]; } }) };
+const PropertiesService = { getScriptProperties: () => ({ getProperty: k => G.props[k] || null, setProperty: (k, v) => { G.props[k] = v; } }) };
+const LockService = { getScriptLock: () => ({ waitLock() {}, releaseLock() {} }) };
+const ContentService = { MimeType: { JSON: 'json' }, createTextOutput: s => ({ s, setMimeType() { return this; }, getContent() { return this.s; } }) };
+const ScriptApp = {
+  getProjectTriggers: () => G.triggers.map(h => ({ getHandlerFunction: () => h })),
+  deleteTrigger() { G.triggers = []; },
+  newTrigger: h => ({ timeBased: () => ({ everyDays: () => ({ atHour: () => ({ create() { G.triggers.push(h); } }) }) }) }),
+};
+const Session = { getEffectiveUser: () => ({ getEmail: () => 'ritmo@example.com' }) };
+const Logger = { log() {} };
+
+/* ----------------------------------- Carga de los .gs ----------------------------------- */
+async function load() {
+  for (const f of ['Code.gs', 'Mail.gs', 'Stats.gs']) {
+    const s = document.createElement('script');
+    s.textContent = await (await fetch('../' + f)).text();
+    document.head.appendChild(s);
+  }
+}
+
+/* ----------------------------------------- Pruebas ----------------------------------------- */
+const results = [];
+function check(name, cond, extra) { results.push({ name, ok: !!cond, extra: cond ? '' : extra }); }
+const post = body => JSON.parse(doPost({ postData: { contents: JSON.stringify(body) } }).getContent());
+const subs = () => table_(T.SUBS).rows;
+const form = (o = {}) => Object.assign({ action: 'signup', email: 'ana@example.com', ciudad: 'sevilla', carrera: 'malaga', marketing: 'SI', contacto: 'SI', nombre: 'Ana', ms: 5000, origen: '/' }, o);
+const tokenOf = html => (html.match(/\?t=([a-f0-9]{32})/) || [])[1];
+const lastMail = () => G.sent[G.sent.length - 1];
+
+async function run() {
+  await load();
+  G.reset();
+  setup();
+  const cfgSheet = G.sheets['Config'];
+  check('setup crea las 6 hojas', ['Suscriptores', 'Contactos', 'Campañas', 'Envíos', 'Config', 'Registro'].every(n => G.sheets[n]));
+  check('setup crea disparador diario y contraseña', G.triggers.join() === 'runDailyJob' && G.props.PANEL_PASSWORD && G.props.PANEL_PASSWORD.length >= 12);
+  check('setup crea campaña de ejemplo en Borrador', table_(T.CAMP).rows.length === 1 && table_(T.CAMP).rows[0].estado === 'Borrador');
+  const before = G.props.PANEL_PASSWORD; setup();
+  check('setup repetido no cambia la contraseña ni duplica el disparador', G.props.PANEL_PASSWORD === before && G.triggers.length === 1);
+
+  // --- Alta
+  check('email inválido se rechaza', post(form({ email: 'nope' })).error === 'email');
+  check('ciudad desconocida se rechaza', post(form({ ciudad: 'xx' })).error === 'ciudad');
+  check('sin elegir sí/no de emails se rechaza', post(form({ marketing: '' })).error === 'marketing');
+  post(form({ email: 'bot@example.com', web: 'http://spam' }));
+  post(form({ email: 'rapido@example.com', ms: 300 }));
+  check('bot (campo trampa) y envío instantáneo no crean fila', subs().length === 0 && G.sent.length === 0);
+
+  let r = post(form());
+  check('alta correcta responde ok', r.ok === true);
+  check('queda Pendiente con token', subs().length === 1 && subs()[0].estado === 'Pendiente' && /^[a-f0-9]{32}$/.test(subs()[0].token));
+  check('se envía 1 email de confirmación con enlace', G.sent.length === 1 && G.sent[0].to === 'ana@example.com' && tokenOf(G.sent[0].htmlBody) === subs()[0].token);
+  check('el email lleva versión de texto plano', G.sent[0].body.includes('/confirmar/?t='));
+  post(form());
+  check('doble envío en 1 minuto no manda otro email', G.sent.length === 1);
+  G.cache = {};
+  post(form({ nombre: 'Ana B' }));
+  check('reenvío tras el minuto reutiliza la fila (sin duplicar)', subs().length === 1 && G.sent.length === 2);
+  G.cache = {}; post(form()); G.cache = {}; post(form()); G.cache = {}; post(form());
+  check('máximo 3 emails de confirmación por persona', G.sent.length === 3, G.sent.length);
+
+  // --- Confirmar
+  setCfg_('LEAD_NOTIFY_EMAIL', 'centro@example.com');
+  const tok = subs()[0].token;
+  check('token mal formado se rechaza', post({ action: 'confirm', token: 'x' }).error === 'token');
+  check('token desconocido se rechaza', post({ action: 'confirm', token: 'a'.repeat(32) }).error === 'token');
+  r = post({ action: 'confirm', token: tok });
+  check('confirmar devuelve el PDF', r.ok && /\.pdf$/.test(r.plan), JSON.stringify(r));
+  check('pasa a Confirmado', subs()[0].estado === 'Confirmado' && subs()[0].fecha_confirmacion instanceof Date);
+  const mails = G.sent.map(m => m.subject);
+  check('se envía la bienvenida con el plan', mails.some(s => /plan de 16 semanas/.test(s)));
+  check('con contacto SI se crea el lead y se avisa al centro', table_(T.LEADS).rows.length === 1 && G.sent.some(m => m.to === 'centro@example.com'));
+  const n = G.sent.length; post({ action: 'confirm', token: tok });
+  check('confirmar dos veces no repite emails ni leads', G.sent.length === n && table_(T.LEADS).rows.length === 1);
+  check('el aviso al centro incluye los datos', /Ana/.test(G.sent.find(m => m.to === 'centro@example.com').htmlBody));
+
+  // --- Baja y re-alta
+  r = post({ action: 'unsub', token: tok });
+  check('la baja funciona con un clic', r.ok && subs()[0].estado === 'Baja' && subs()[0].marketing === 'NO');
+  G.cache = {}; post(form());
+  check('re-alta tras la baja vuelve a Pendiente con token nuevo', subs()[0].estado === 'Pendiente' && subs()[0].token !== tok);
+
+  // --- Casos límite
+  G.cache = {}; post(form({ email: 'madrid@example.com', ciudad: 'madrid', contacto: 'SI' }));
+  check('contacto SI fuera de Sevilla se ignora', subs().find(s => s.email === 'madrid@example.com').contacto === 'NO');
+  G.cache = {}; post(form({ email: 'inj@example.com', nombre: '=HYPERLINK("http://x","y")', telefono: '+34 600 000 000' }));
+  const inj = subs().find(s => s.email === 'inj@example.com');
+  const raw = G.sheets['Suscriptores'].rows.find(r => r[2] === 'inj@example.com');
+  check('las fórmulas escritas por usuarios se neutralizan', inj.nombre.startsWith('=') && inj.telefono === '+34 600 000 000' && true);
+  check('el teléfono se guarda como texto', typeof inj.telefono === 'string');
+
+  // --- Campañas
+  G.reset(); setup();
+  const mk = (email, ciudad, marketing = 'SI', estado = 'Confirmado') => appendObj_(T.SUBS, { id: shortId_(), fecha_alta: new Date(), email, ciudad, carrera: 'malaga', origen: '/', estado, marketing, contacto: 'NO', fecha_confirmacion: estado === 'Pendiente' ? '' : new Date(), token: token_(), emails_confirmacion: 1 });
+  for (let i = 0; i < 6; i++) mk('s' + i + '@example.com', 'sevilla');
+  mk('m1@example.com', 'madrid'); mk('no@example.com', 'sevilla', 'NO'); mk('baja@example.com', 'sevilla', 'SI', 'Baja'); mk('pend@example.com', 'sevilla', 'SI', 'Pendiente');
+  const camp = table_(T.CAMP).rows[0];
+  updateObj_(T.CAMP, camp._row, { estado: 'Programada', fecha_envio: new Date(Date.now() - 864e5), publi_activa: 'SI', publi_titulo: 'Clase gratis', publi_texto: 'Prueba en [Good Training](https://goodtraining.es)', publi_enlace: 'https://goodtraining.es', cuerpo: 'Hola <script>alert(1)<\/script>\n\n- uno\n- dos\n\n**Importante** [web](https://ritmohibrido.com)' });
+  G.sent = []; G.quota = 10 + 4; // reserva 10 → 4 disponibles
+  runDailyJob();
+  let c = table_(T.CAMP).rows[0];
+  check('respeta la cuota: envía solo 4 y queda En curso', G.sent.length === 4 && c.estado === 'En curso' && c.enviados === 4, JSON.stringify({ n: G.sent.length, e: c.estado, en: c.enviados }));
+  check('solo a confirmados con consentimiento (no baja, no pendiente, no "No")', G.sent.every(m => !/^(no|baja|pend)@/.test(m.to)));
+  G.quota = 100; G.sent = [];
+  runDailyJob();
+  c = table_(T.CAMP).rows[0];
+  check('al día siguiente termina sin repetir a nadie', G.sent.length === 3 && c.estado === 'Enviada' && c.enviados === 7, JSON.stringify({ n: G.sent.length, e: c.estado, en: c.enviados }));
+  const all = table_(T.SENDS).rows.filter(r => r.resultado === 'OK').map(r => r.email);
+  check('el registro de envíos no tiene duplicados', new Set(all).size === all.length && all.length === 7);
+  G.sent = []; runDailyJob();
+  check('una campaña Enviada no se vuelve a enviar', G.sent.length === 0);
+  const html = G.reset || '';
+  // contenido del último email
+  G.sent = []; updateObj_(T.CAMP, camp._row, { estado: 'Programada', segmento_ciudad: 'Sevilla' }); sheet_(T.SENDS).getDataRange(); G.sheets['Envíos'].rows.length = 1; runDailyJob();
+  const m = G.sent[0];
+  check('segmento por ciudad: solo Sevilla', G.sent.length === 6 && G.sent.every(x => /^s\d@/.test(x.to)), G.sent.map(x => x.to).join());
+  check('el HTML escapa scripts', !m.htmlBody.includes('<script>') && m.htmlBody.includes('&lt;script&gt;'));
+  check('la publicidad va etiquetada', m.htmlBody.includes('Publicidad'));
+  check('lleva enlace de baja personal', /\/baja\/\?t=[a-f0-9]{32}/.test(m.htmlBody));
+  check('listas y negritas se convierten', m.htmlBody.includes('<li') && m.htmlBody.includes('<strong>Importante</strong>'));
+  check('el remitente y el responsable salen en el pie', m.name === 'Ritmo Híbrido' && m.htmlBody.includes('Responsable'));
+  updateObj_(T.CAMP, camp._row, { estado: 'Programada' }); G.sent = []; G.failFor = 's1@example.com'; G.sheets['Envíos'].rows.length = 1; runDailyJob(); runDailyJob(); runDailyJob();
+  const errs = table_(T.SENDS).rows.filter(r => r.resultado === 'ERROR' && r.email === 's1@example.com').length;
+  check('una dirección que falla se reintenta máximo 2 veces y la campaña termina', errs === 2 && table_(T.CAMP).rows[0].estado === 'Enviada', errs + ' ' + table_(T.CAMP).rows[0].estado);
+  G.failFor = null;
+
+  // --- onEdit
+  appendObj_(T.LEADS, { id: 'L1', fecha: new Date(), email: 'a@example.com', ciudad: 'sevilla', estado: 'Cerrado' });
+  const sh = G.sheets['Contactos']; const head = sh.rows[0];
+  onEdit({ range: sh.getRange(2, head.indexOf('estado') + 1), value: 'Cerrado' });
+  const l = table_(T.LEADS).rows[0];
+  check('al marcar Cerrado se rellenan fecha y comisión por defecto', l.fecha_cierre instanceof Date && l.comision === 30, JSON.stringify(l));
+
+  // --- Panel
+  check('panel sin contraseña correcta se rechaza', post({ action: 'stats', password: 'mal' }).error === 'bad');
+  r = post({ action: 'stats', password: G.props.PANEL_PASSWORD });
+  check('panel con la contraseña devuelve datos', r.ok && r.stats.kpis && r.stats.embudo.length === 7 && r.stats.sistema, JSON.stringify(r).slice(0, 200));
+  const k = r.stats.kpis;
+  check('KPI activos = 8 (6 sev + 1 mad + 1 sin emails mensuales)', k.activos.value === 8, k.activos.value);
+  check('KPI comisión del mes = 30 y cierres = 1', k.comision.value === 30 && k.cierres.value === 1, JSON.stringify(k));
+  check('embudo: 10 formularios y 9 confirmados (todos menos el pendiente)', r.stats.embudo[0].value === 10 && r.stats.embudo[1].value === 9, JSON.stringify(r.stats.embudo.slice(0, 3)));
+  check('12 semanas y las altas recientes cuentan en la última', r.stats.semanas.length === 12 && r.stats.semanas[11].altas === 9 && r.stats.semanas[11].bajas === 0, JSON.stringify(r.stats.semanas[11]));
+  check('sistema informa cuota y disparador', r.stats.sistema.triggers.includes('runDailyJob') && typeof r.stats.sistema.cuotaRestante === 'number');
+  for (let i = 0; i < 5; i++) post({ action: 'stats', password: 'x' + i });
+  check('5 fallos bloquean el panel aunque la contraseña sea buena', post({ action: 'stats', password: G.props.PANEL_PASSWORD }).error === 'locked');
+  check('acción desconocida y JSON roto no tumban el servidor', post({ action: 'zzz' }).error === 'accion' && JSON.parse(doPost({ postData: { contents: '{' } }).getContent()).error === 'server');
+}
+
+run().then(() => {
+  const pass = results.filter(r => r.ok).length;
+  window.__results = results;
+  document.getElementById('out').innerHTML = `<b>${pass}/${results.length} pruebas correctas</b>\n\n` +
+    results.map(r => `<span class="${r.ok ? 'ok' : 'ko'}">${r.ok ? '✔' : '✘'} ${r.name}${r.extra ? '  → ' + r.extra : ''}</span>`).join('\n');
+}).catch(e => { document.getElementById('out').innerHTML = '<span class="ko">Error en el simulador: ' + (e.stack || e) + '</span>'; window.__results = 'ERROR ' + (e.stack || e); });
+</script></body></html>

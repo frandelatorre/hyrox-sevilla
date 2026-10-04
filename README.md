@@ -14,6 +14,10 @@ Web estática: HTML, CSS y JavaScript sin dependencias ni paso de compilación.
 | `plan/` | Plan de 16 semanas y alta por email |
 | `gimnasios/` | Directorio por ciudad |
 | `legal/` | Aviso legal (provisional) |
+| `confirmar/`, `baja/` | Páginas a las que llegan los enlaces de los emails (confirmar y darse de baja) |
+| `panel-1e97356f51be/` | Panel de estadísticas con contraseña (no indexado) |
+| `backend/` | Google Apps Script: formulario, emails y datos. Ver `backend/README.md` |
+| `recursos/` | Plan de 16 semanas (PDF y su fuente) |
 | `assets/css/styles.css` | Estilos comunes |
 | `assets/js/main.js` | Calendario (`RACES`), cuenta atrás, plan, filtros y formularios |
 | `propuestas/` | Propuestas de diseño iniciales (no indexadas) |
@@ -22,7 +26,7 @@ Web estática: HTML, CSS y JavaScript sin dependencias ni paso de compilación.
 
 - **Nueva carrera o cambio de fechas:** actualizar `RACES` en `assets/js/main.js` y las tarjetas de `index.html` y `calendario/index.html`.
 - **Nuevo gimnasio o ciudad:** añadir la ficha en `gimnasios/index.html` (un bloque `data-city` por ciudad y su botón de filtro).
-- **Formularios:** ahora solo muestran un mensaje de confirmación. Para recoger emails, poner en el `action` de cada `form[data-signup]` la URL de la herramienta de email (MailerLite, Brevo…).
+- **Formularios y panel:** hablan con el backend de `backend/` a través de la URL de `assets/js/config.js` (vacía = modo demostración). Instalación en `backend/README.md`.
 
 ## Ver en local
 

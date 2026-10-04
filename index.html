@@ -88,11 +88,49 @@
 <section id="plan"><div class="wrap">
   <div class="cta">
     <div><h2>Plan <span>16 semanas</span><br>gratis</h2><p>Semana a semana, en tu email. Adaptado a la carrera que elijas, con consejos para cada estación.</p></div>
-    <form data-signup="recursos/ritmo-hibrido-plan-16-semanas.pdf">
-      <select name="carrera" aria-label="Carrera"></select>
-      <div class="row"><input type="email" name="email" placeholder="tu@email.com" required aria-label="Email"><button class="btn">Lo quiero</button></div>
-      <span class="fine">Sin spam. Te das de baja cuando quieras.</span>
+    <form data-signup data-plan="recursos/ritmo-hibrido-plan-16-semanas.pdf" novalidate>
+      <label class="fld">Email
+        <input type="email" name="email" required autocomplete="email" placeholder="tu@email.com">
+      </label>
+      <div class="two">
+        <label class="fld">Ciudad
+          <select name="ciudad" required>
+            <option value="">Elige tu ciudad</option>
+            <option value="sevilla">Sevilla y provincia</option><option value="madrid">Madrid</option>
+            <option value="malaga">Málaga</option><option value="valencia">Valencia</option>
+            <option value="barcelona">Barcelona</option><option value="bilbao">Bilbao</option>
+            <option value="otra">Otra ciudad</option>
+          </select>
+        </label>
+        <label class="fld">Carrera
+          <select name="carrera"></select>
+        </label>
+      </div>
+      <fieldset class="ask" data-ask-lead hidden>
+        <legend>¿Quieres que Good Training, centro colaborador en Sevilla, te llame para una clase de prueba gratis?</legend>
+        <div class="opts">
+          <label class="opt"><input type="radio" name="contacto" value="SI"><span>Sí, que me llamen</span></label>
+          <label class="opt"><input type="radio" name="contacto" value="NO"><span>No, solo el plan</span></label>
+        </div>
+        <div class="two" data-lead-fields hidden>
+          <label class="fld">Nombre (opcional)<input type="text" name="nombre" maxlength="60" autocomplete="given-name"></label>
+          <label class="fld">Teléfono (opcional)<input type="tel" name="telefono" maxlength="20" autocomplete="tel"></label>
+        </div>
+        <p class="hint">Si dices que sí, compartiremos tu email (y nombre o teléfono si los indicas) con Good Training solo para contestar a esta petición.</p>
+      </fieldset>
+      <fieldset class="ask">
+        <legend>¿Quieres recibir por email, una vez al mes, novedades, consejos y ofertas de Ritmo Híbrido y de centros colaboradores?</legend>
+        <div class="opts">
+          <label class="opt"><input type="radio" name="marketing" value="SI"><span>Sí, enviádmelos</span></label>
+          <label class="opt"><input type="radio" name="marketing" value="NO"><span>No, gracias</span></label>
+        </div>
+      </fieldset>
+      <div class="hp" aria-hidden="true"><label>No rellenar<input type="text" name="web" tabindex="-1" autocomplete="off"></label></div>
+      <p class="form-msg" role="alert" hidden></p>
+      <button type="submit" class="btn">Enviarme el plan</button>
+      <p class="fine">Responsable: Ritmo Híbrido (hola@ritmohibrido.com). Usamos tu email para enviarte el plan y, solo si lo eliges, el email mensual. Te pediremos confirmarlo por email y podrás darte de baja con un clic desde cualquier mensaje. <a href="legal/#privacidad">Privacidad</a>.</p>
     </form>
+
   </div>
 </div></section>
 </main>
@@ -105,6 +143,7 @@
   </div>
   <p class="legal">© <span data-year>2026</span> Ritmo Híbrido. Web independiente, sin relación con HYROX World GmbH ni con sus eventos oficiales. HYROX es una marca registrada de su titular y se menciona solo para identificar la competición.</p>
 </div></footer>
+<script src="assets/js/config.js"></script>
 <script src="assets/js/main.js"></script>
 </body>
 </html>

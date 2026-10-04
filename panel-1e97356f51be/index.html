@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Panel · Ritmo Híbrido</title>
+<meta name="robots" content="noindex,nofollow">
+<meta name="theme-color" content="#0E1013">
+<link rel="icon" href="../assets/img/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,600;0,800;1,800&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/css/panel.css">
+</head>
+<body>
+<header class="top"><div class="wrap">
+  <div class="brand"><span class="logo">Ritmo<b>/</b>Híbrido</span><span class="tag">Panel</span></div>
+  <div class="tools">
+    <span id="updated" class="upd"></span>
+    <button class="ghost" id="refresh" type="button">Actualizar</button>
+    <button class="ghost" id="export" type="button">Exportar</button>
+    <button class="ghost" id="logout" type="button">Salir</button>
+  </div>
+</div></header>
+<nav class="tabs"><div class="wrap" id="tabs"></div></nav>
+<div id="banner" class="banner" hidden></div>
+<main class="wrap" id="view"></main>
+
+<div class="gate" id="gate">
+  <form id="login">
+    <span class="logo">Ritmo<b>/</b>Híbrido</span>
+    <h1>Panel</h1>
+    <label>Contraseña<input type="password" id="pw" autocomplete="current-password" autofocus required></label>
+    <p id="loginMsg" class="msg" hidden></p>
+    <button class="btn" type="submit">Entrar</button>
+  </form>
+</div>
+<script src="../assets/js/config.js"></script>
+<script src="../assets/js/panel.js"></script>
+</body>
+</html>

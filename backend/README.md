@@ -1,0 +1,57 @@
+# Backend de Ritmo Híbrido (Google Sheets + Apps Script)
+
+Recoge las altas del formulario, hace la **doble confirmación por email**, envía el plan, avisa a Good Training de quien pide clase de prueba, manda **una campaña al mes** y alimenta el panel.
+
+```
+Formulario (web) ──POST──▶ Apps Script ──▶ Google Sheet (datos)
+                                │
+                                ├─▶ Gmail: confirmación, plan, campañas, aviso al centro
+                                └─▶ Panel (/panel-…/) lee las estadísticas con contraseña
+```
+
+## Instalación (una sola vez, unos 15 minutos)
+
+1. **Cuenta de Google.** Los emails salen de la cuenta que despliega el script. Recomendado crear una dedicada, p. ej. `ritmohibrido@gmail.com`, y no usar la personal.
+2. **Hoja.** En [sheets.new](https://sheets.new) crea una hoja llamada *Ritmo Híbrido · Datos*.
+3. **Script.** *Extensiones → Apps Script*. Crea tres archivos (`Code.gs`, `Mail.gs`, `Stats.gs`) y pega el contenido de los de esta carpeta. En *Configuración del proyecto* activa «Mostrar el archivo de manifiesto appsscript.json» y pega también [appsscript.json](appsscript.json).
+4. **Preparar.** Elige la función `setup` y pulsa *Ejecutar*. Autoriza los permisos (Google avisará de «app no verificada»: *Avanzado → Ir a… (no seguro)*; es tu propio script). Al terminar, en el *Registro de ejecución* verás la **contraseña del panel**. Crea las hojas, el menú *Ritmo Híbrido*, los desplegables y el disparador diario de las 9:00.
+5. **Ajustes.** En la hoja `Config` revisa:
+   - `SITE_URL` y `PLAN_URL`: la web real. Mientras pruebas, usa la de GitHub Pages.
+   - `LEAD_NOTIFY_EMAIL`: email de Good Training que recibe cada petición de clase de prueba (consúltalo antes con ellos).
+   - `CONTACT_EMAIL`, `REPLY_TO`, `COMISION_CIERRE`.
+6. **Publicar.** *Implementar → Nueva implementación → Aplicación web*. *Ejecutar como:* yo. *Quién tiene acceso:* cualquier persona. Copia la URL que termina en `/exec`.
+7. **Conectar la web.** Pega esa URL en [assets/js/config.js](../assets/js/config.js) (`endpoint`) y sube el cambio. Mientras esté vacía, formularios y panel funcionan en modo demostración.
+8. **Probar.** Apúntate con tu email desde la web, confirma desde el correo y comprueba que aparece en la hoja `Suscriptores`. Abre el panel e introduce la contraseña.
+
+Si cambias el código más adelante: *Implementar → Gestionar implementaciones → editar → Nueva versión*. La URL no cambia.
+
+## Uso diario
+
+| Quiero… | Hago… |
+|---|---|
+| Enviar la campaña del mes | Hoja `Campañas`: edita la fila (asunto, título, cuerpo), pon `estado = Programada` y la `fecha_envio`. El disparador diario la envía. |
+| Probarla antes | Menú *Ritmo Híbrido → Enviar email de prueba a mi cuenta* (usa la primera campaña en Borrador o Programada). |
+| Incluir publicidad | `publi_activa = SI` y rellena título, texto, enlace y botón. Sale con la etiqueta «Publicidad». Anota lo cobrado en `ingreso_publi` para el panel. |
+| Enviar solo a una ciudad | `segmento_ciudad` = `sevilla`, `madrid`… (vacío = todas). |
+| Seguir a una persona que pidió clase | Hoja `Contactos`: cambia `estado` (Nuevo → Contactado → Cerrado). Al poner *Cerrado* se rellenan solos la fecha y la comisión por defecto; edítala si es distinta. |
+
+**Formato del cuerpo:** párrafos separados por una línea en blanco; líneas con `- ` forman una lista; `[texto](https://…)` es un enlace; `**negrita**`. El HTML se escapa, no hace falta (ni funciona) escribir etiquetas.
+
+## Cómo funciona por dentro
+
+- **Doble confirmación.** El alta queda `Pendiente`. El enlace del email lleva a `/confirmar/?t=…` en la web, que confirma con JavaScript (así los escáneres de enlaces del correo no confirman por error). Solo entonces se envía el plan y, si se pidió, se avisa al centro.
+- **Baja con un clic** desde cualquier email (`/baja/?t=…`). Una persona dada de baja no recibe nada más.
+- **Dos consentimientos separados:** recibir el email mensual (`marketing`) y compartir los datos con el centro (`contacto`, solo en Sevilla).
+- **Cuota de Gmail.** Una cuenta normal envía 100 emails al día (Workspace, 1.500). Las campañas se reparten solas en varios días, dejan 10 de reserva para confirmaciones y no repiten a nadie. Cada dirección que falla se reintenta una vez.
+- **Antiabuso:** campo trampa oculto, tiempo mínimo de rellenado, 1 envío por minuto y email, máximo 3 emails de confirmación por persona, y los textos se guardan como texto (no como fórmulas).
+- **Panel.** Contraseña en *Configuración del proyecto → Propiedades del script → `PANEL_PASSWORD`*. Cinco fallos seguidos lo bloquean 15 minutos.
+
+## Pruebas
+
+`backend/test/tests.html` ejecuta los tres archivos contra un simulador de las APIs de Google (hojas, correo, caché…) y comprueba el flujo completo: alta, confirmación, baja, campañas con cuota, segmentos, estadísticas y panel. Ábrelo con el servidor local en marcha; debe indicar *50/50 pruebas correctas*. Ejecútalo tras cualquier cambio en el código.
+
+## Límites y siguientes pasos
+
+- **No hay seguimiento de aperturas ni clics** (poco fiable por las protecciones de privacidad del correo y más simple en términos legales).
+- Los emails salen de una cuenta de Gmail, sin dominio propio: válido para empezar. Por encima de unos 1.000 suscriptores conviene migrar a Brevo o MailerLite y mantener esta hoja como registro.
+- **Pendiente de legal** (lo dejamos para más adelante): titular, NIF y domicilio en el aviso legal; política de privacidad (finalidad, base legal, cesión a Good Training con consentimiento, derechos); política de cookies; y guardar prueba del consentimiento (ahora se guardan fechas y opciones elegidas, pero no el texto exacto mostrado).

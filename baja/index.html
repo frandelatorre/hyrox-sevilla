@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Darte de baja · Ritmo Híbrido</title>
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#0E1013">
+<link rel="icon" href="../assets/img/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,600;0,800;1,800&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/css/styles.css">
+</head>
+<body>
+<header class="site-header"><div class="wrap">
+  <a class="logo" href="../">Ritmo<b>/</b>Híbrido</a>
+  <a class="btn" href="../plan/">Plan gratis</a>
+</div></header>
+<main>
+<div class="hero"><div class="wrap" style="display:block">
+  <p class="eyebrow">Baja del email</p>
+  <h1 id="title">Un momento…</h1>
+  <p class="lead" id="lead">Estamos comprobando tu enlace.</p>
+  <div class="btn-row" id="actions"></div>
+</div></div>
+</main>
+<footer class="site-footer"><div class="wrap">
+  <p class="legal">© <span data-year>2026</span> Ritmo Híbrido. Web independiente, sin relación con HYROX World GmbH ni con sus eventos oficiales. <a href="../legal/">Aviso legal</a></p>
+</div></footer>
+<script src="../assets/js/config.js"></script>
+<script src="../assets/js/main.js"></script>
+<script>
+
+(async () => {
+  const $ = id => document.getElementById(id);
+  const t = new URLSearchParams(location.search).get('t') || '';
+  const show = (title, lead, actions) => { $('title').innerHTML = title; $('lead').textContent = lead; $('actions').innerHTML = actions || ''; };
+  try {
+    const out = await rhApi({ action: 'unsub', token: t });
+    if (out === null) return show('Modo <span class="a">demostración</span>', 'Aún no hay backend conectado, así que no hay nada que dar de baja.', '<a class="btn" href="../">Volver al inicio</a>');
+    if (out.ok) show('Te has <span class="a">dado de baja</span>', 'No recibirás más emails de Ritmo Híbrido. Si ha sido un error, puedes volver a apuntarte cuando quieras.', '<a class="btn sec" href="../plan/">Volver a apuntarme</a>');
+    else show('Enlace <span class="a">no válido</span>', 'No hemos encontrado tu suscripción con este enlace. Si sigues recibiendo emails, escríbenos a hola@ritmohibrido.com y te damos de baja a mano.', '<a class="btn" href="../">Volver al inicio</a>');
+  } catch (e) {
+    show('Algo <span class="a">ha fallado</span>', 'No hemos podido conectar. Recarga la página en un momento.', '<a class="btn" href="" onclick="location.reload();return false">Reintentar</a>');
+  }
+})();
+
+</script>
+</body>
+</html>

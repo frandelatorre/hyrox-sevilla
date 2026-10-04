@@ -77,20 +77,76 @@ document.querySelectorAll('.filters').forEach(group => group.addEventListener('c
     el.hidden = !(f.dataset.city === 'all' || el.dataset.city === f.dataset.city));
 }));
 
+// API del backend (Google Apps Script). Las peticiones van como texto plano para evitar el preflight de CORS.
+async function rhApi(payload) {
+  const endpoint = (window.RH_CONFIG || {}).endpoint;
+  if (!endpoint) return null; // modo demostración
+  const res = await fetch(endpoint, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify(payload),
+  });
+  return res.json();
+}
+window.rhApi = rhApi;
+
 // Formularios de alta
-// TODO: conectar con la herramienta de email (MailerLite/Brevo) cambiando el action del formulario.
 document.querySelectorAll('form[data-signup]').forEach(form => {
-  const races = form.querySelector('select[name="carrera"]');
+  const t0 = Date.now();
+  const $ = sel => form.querySelector(sel);
+  const races = $('select[name="carrera"]');
   if (races) races.innerHTML = '<option value="">¿Qué carrera preparas?</option>' +
     upcoming().map(r => `<option value="${r.id}">${r.city} · ${r.label}</option>`).join('') +
     '<option value="ninguna">Todavía ninguna</option>';
-  form.addEventListener('submit', e => {
-    if (form.getAttribute('action')) return;
+
+  // La petición de clase de prueba solo aplica en Sevilla (donde está el centro colaborador)
+  const city = $('select[name="ciudad"]'), lead = $('[data-ask-lead]'), leadFields = $('[data-lead-fields]');
+  const syncLead = () => {
+    const sev = city.value === 'sevilla';
+    lead.hidden = !sev;
+    if (!sev) form.querySelectorAll('input[name="contacto"]').forEach(r => { r.checked = false; });
+    const yes = sev && ($('input[name="contacto"]:checked') || {}).value === 'SI';
+    leadFields.hidden = !yes;
+  };
+  city.addEventListener('change', syncLead);
+  form.querySelectorAll('input[name="contacto"]').forEach(r => r.addEventListener('change', syncLead));
+  syncLead();
+
+  const msg = $('.form-msg');
+  const say = (text, bad) => { msg.textContent = text; msg.dataset.bad = bad ? '1' : ''; msg.hidden = !text; };
+
+  form.addEventListener('submit', async e => {
     e.preventDefault();
-    const pdf = form.dataset.signup;
-    form.innerHTML = '<p class="form-ok">¡Hecho! Revisa tu email.</p>' +
-      (pdf ? `<a class="btn" href="${pdf}" download>Descargar el plan (PDF)</a>` : '');
+    const f = Object.fromEntries(new FormData(form).entries());
+    if (!f.ciudad) return say('Elige tu ciudad.', true);
+    if (!f.marketing) return say('Indica si quieres recibir el email mensual (sí o no).', true);
+    if (city.value === 'sevilla' && !f.contacto) return say('Indica si quieres que te llamen para una clase de prueba (sí o no).', true);
+
+    const btn = $('button[type="submit"]'), label = btn.textContent;
+    btn.disabled = true; btn.textContent = 'Enviando…'; say('');
+    try {
+      const out = await rhApi({
+        action: 'signup', email: f.email, ciudad: f.ciudad, carrera: f.carrera || '', marketing: f.marketing,
+        contacto: f.contacto || 'NO', nombre: f.nombre || '', telefono: f.telefono || '',
+        web: f.web || '', ms: Date.now() - t0, origen: location.pathname.replace(/\/$/, '') || '/',
+      });
+      if (out === null) { // demostración: sin backend
+        form.innerHTML = '<p class="form-ok">¡Hecho! (modo demostración)</p>' +
+          '<a class="btn" href="' + (form.dataset.plan || '') + '" download>Descargar el plan (PDF)</a>';
+      } else if (out.ok) {
+        form.innerHTML = '<p class="form-ok">Casi listo: confirma tu email.</p>' +
+          '<p class="form-sub">Te hemos enviado un mensaje con un botón de confirmación. Si no lo ves en unos minutos, mira en spam o promociones.</p>';
+      } else {
+        const errs = { email: 'Revisa el email: no parece válido.', ciudad: 'Elige tu ciudad.', marketing: 'Indica si quieres el email mensual.' };
+        say(errs[out.error] || 'No hemos podido enviarlo. Inténtalo de nuevo en un momento.', true);
+        btn.disabled = false; btn.textContent = label;
+      }
+    } catch (err) {
+      say('No hemos podido conectar. Revisa tu conexión e inténtalo de nuevo.', true);
+      btn.disabled = false; btn.textContent = label;
+    }
   });
 });
+
 
 document.querySelectorAll('[data-year]').forEach(el => el.textContent = new Date().getFullYear());
