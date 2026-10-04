@@ -1,0 +1,5 @@
+Barlow y Barlow Condensed
+Copyright (c) The Barlow Project Authors (https://github.com/jpt/barlow)
+Licencia: SIL Open Font License 1.1 (https://openfontlicense.org)
+Se alojan aquí para no cargar tipografías de servidores de terceros. Descargadas de Google Fonts
+(subconjuntos latin y latin-ext). Las reglas @font-face están en fonts.css.

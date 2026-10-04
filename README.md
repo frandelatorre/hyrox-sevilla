@@ -19,6 +19,7 @@ Web estática: HTML, CSS y JavaScript sin dependencias ni paso de compilación.
 | `backend/` | Google Apps Script: formulario, emails y datos. Ver `backend/README.md` |
 | `recursos/` | Plan de 16 semanas (PDF y su fuente) |
 | `assets/css/styles.css` | Estilos comunes |
+| `assets/fonts/` | Tipografías Barlow alojadas aquí (sin Google Fonts) |
 | `assets/js/main.js` | Calendario (`RACES`), cuenta atrás, plan, filtros y formularios |
 | `propuestas/` | Propuestas de diseño iniciales (no indexadas) |
 
