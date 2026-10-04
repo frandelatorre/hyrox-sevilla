@@ -48,8 +48,8 @@
         { k: 'registros', label: 'Formularios enviados', value: 231, base: null },
         { k: 'confirmados', label: 'Email confirmado', value: 170, base: 0, baseLabel: 'formularios' },
         { k: 'marketing', label: 'Aceptan el email mensual', value: 121, base: 1, baseLabel: 'confirmados' },
-        { k: 'contactos', label: 'Piden clase de prueba', value: 28, base: 1, baseLabel: 'confirmados' },
-        { k: 'contactados', label: 'Contactados por el centro', value: 24, base: 3, baseLabel: 'peticiones' },
+        { k: 'contactos', label: 'Contactos con el centro', value: 28, base: 1, baseLabel: 'confirmados' },
+        { k: 'contactados', label: 'Contactados por el centro', value: 24, base: 3, baseLabel: 'contactos' },
         { k: 'cierres', label: 'Cierres (altas en el centro)', value: 6, base: 4, baseLabel: 'contactados' },
         { k: 'comision', label: 'Comisión acumulada (€)', value: 180, base: null, euros: true },
       ],
@@ -79,7 +79,7 @@
         cuotaRestante: 87, triggers: ['runDailyJob'], ultimaEjecucion: now.toISOString(), pendientesConfirmar: 6, sinEmailConfirmacion: 0,
         checks: [
           { k: 'Disparador diario de envíos', ok: true }, { k: 'Contraseña del panel', ok: true },
-          { k: 'Email del centro para avisar de contactos', ok: false, msg: 'Config > LEAD_NOTIFY_EMAIL vacío: no se avisa al centro' }, { k: 'URL de la web', ok: true },
+          { k: 'URL de la web', ok: true },
         ],
         filas: { suscriptores: 231, contactos: 28, campanas: 3, envios: 132 },
         errores: [{ fecha: '03/10 09:02', origen: 'envio a3', detalle: 'Dirección inválida (ejemplo)' }],
@@ -131,7 +131,7 @@
       return '<h2>Resumen</h2><p class="sub">Últimos 30 días frente a los 30 anteriores.</p><div class="kpis">' +
         kpi('Suscriptores activos', nf.format(k.activos.value), delta(k.activos.delta, 0)) +
         kpi('Emails enviados', nf.format(k.enviados.value), delta(k.enviados.value, k.enviados.prev)) +
-        kpi('Peticiones de contacto', nf.format(k.contactos.value), delta(k.contactos.value, k.contactos.prev)) +
+        kpi('Contactos con el centro', nf.format(k.contactos.value), delta(k.contactos.value, k.contactos.prev)) +
         kpi('Tasa de baja', k.tasaBaja.value === null ? '—' : pct(k.tasaBaja.value), k.tasaBaja.value === null ? '<span class="chip">Sin envíos</span>' : `<span class="chip">${k.tasaBaja.bajas} bajas</span>`) +
         kpi('Cierres del mes', nf.format(k.cierres.value), delta(k.cierres.value, k.cierres.prev)) +
         kpi('Comisión del mes', eur(k.comision.value), delta(k.comision.value, k.comision.prev)) +
@@ -158,7 +158,7 @@
     comparativas(s) {
       const bars = (rows, label, val) => { const m = Math.max(1, ...rows.map(r => r[val])); return rows.length ? rows.map(r => `<div class="hbar"><span>${esc(r[label])}</span><div class="b"><span style="width:${r[val] / m * 100}%"></span></div><span class="n">${r[val]}</span></div>`).join('') : '<p class="empty">Todavía no hay datos.</p>'; };
       return '<h2>Comparativas</h2><p class="sub">Dónde y por qué página llegan las personas.</p>' +
-        table('Por ciudad', ['Ciudad', 'Formularios', 'Activos', 'Peticiones', 'Cierres'], s.ciudades.map(c => [c.ciudad, c.registros, c.activos, c.contactos, c.cierres]), { numeric: [1, 2, 3, 4] }) +
+        table('Por ciudad', ['Ciudad', 'Formularios', 'Activos', 'Contactos', 'Cierres'], s.ciudades.map(c => [c.ciudad, c.registros, c.activos, c.contactos, c.cierres]), { numeric: [1, 2, 3, 4] }) +
         table('Por página de alta', ['Página', 'Formularios', 'Confirmados', 'Conversión'], s.origenes.map(o => [o.origen, o.registros, o.confirmados, pct(o.conversion)]), { numeric: [1, 2, 3] }) +
         `<div class="card"><h3>Carrera que preparan (suscriptores activos)</h3>${bars(s.carreras, 'carrera', 'activos')}</div>`;
     },

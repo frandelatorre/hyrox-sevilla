@@ -20,8 +20,8 @@ const T = {
 };
 
 const COLS = {
-  'Suscriptores': ['id', 'fecha_alta', 'email', 'ciudad', 'carrera', 'origen', 'estado', 'marketing', 'contacto',
-    'nombre', 'telefono', 'fecha_confirmacion', 'fecha_baja', 'token', 'emails_confirmacion'],
+  'Suscriptores': ['id', 'fecha_alta', 'email', 'ciudad', 'carrera', 'origen', 'estado', 'marketing',
+    'fecha_confirmacion', 'fecha_baja', 'token', 'emails_confirmacion'],
   'Contactos': ['id', 'fecha', 'email', 'nombre', 'telefono', 'ciudad', 'estado', 'centro', 'fecha_cierre', 'comision', 'notas'],
   'Campañas': ['id', 'mes', 'fecha_envio', 'asunto', 'titulo', 'cuerpo', 'publi_activa', 'publi_titulo', 'publi_texto',
     'publi_enlace', 'publi_boton', 'segmento_ciudad', 'estado', 'enviados', 'errores', 'fecha_fin', 'ingreso_publi'],
@@ -40,8 +40,6 @@ const CFG_DEFAULTS = [
   ['CONTACT_EMAIL', 'hola@ritmohibrido.com', 'Contacto que aparece en el pie de los emails'],
   ['SITE_URL', 'https://ritmohibrido.com', 'URL de la web, sin barra final (los enlaces de los emails salen de aquí)'],
   ['PLAN_URL', 'https://ritmohibrido.com/recursos/ritmo-hibrido-plan-16-semanas.pdf', 'PDF del plan de 16 semanas'],
-  ['LEAD_CENTER', 'Good Training', 'Centro al que se envían los contactos de quienes lo piden'],
-  ['LEAD_NOTIFY_EMAIL', '', 'Email del centro que recibe cada contacto nuevo (vacío = no se avisa)'],
   ['COMISION_CIERRE', '30', 'Comisión por defecto (€) al marcar un contacto como Cerrado'],
   ['CUOTA_RESERVA', '10', 'Emails diarios que nunca se gastan en campañas (confirmaciones, avisos)'],
 ];
@@ -88,9 +86,6 @@ function handleSignup_(req) {
   if (!ciudad) return { ok: false, error: 'ciudad' };
   if (req.marketing !== 'SI' && req.marketing !== 'NO') return { ok: false, error: 'marketing' };
   const carrera = /^[a-z0-9-]{1,20}$/.test(String(req.carrera || '')) ? req.carrera : '';
-  const contacto = ciudad === 'sevilla' && req.contacto === 'SI' ? 'SI' : 'NO';
-  const nombre = String(req.nombre || '').trim().slice(0, 60);
-  const telefono = /^[0-9+\s().-]{6,20}$/.test(String(req.telefono || '').trim()) ? String(req.telefono).trim() : '';
   const origen = String(req.origen || '').slice(0, 40);
 
   const cache = CacheService.getScriptCache();
@@ -100,7 +95,7 @@ function handleSignup_(req) {
   return withLock_(() => {
     const subs = table_(T.SUBS).rows;
     const found = subs.find(s => String(s.email).toLowerCase() === email);
-    const data = { ciudad, carrera, origen, marketing: req.marketing, contacto, nombre, telefono };
+    const data = { ciudad, carrera, origen, marketing: req.marketing };
 
     if (!found) {
       const sub = Object.assign({
@@ -114,10 +109,8 @@ function handleSignup_(req) {
 
     if (found.estado === 'Confirmado') {
       // Ya estaba apuntado: actualizamos preferencias y le reenviamos el plan (sin revelar nada en la respuesta)
-      const newLead = contacto === 'SI' && found.contacto !== 'SI';
       updateObj_(T.SUBS, found._row, data);
       Object.assign(found, data);
-      if (newLead) createLead_(found);
       if (Number(found.emails_confirmacion || 0) < 6 && canSend_(1)) {
         sendWelcome_(found);
         updateObj_(T.SUBS, found._row, { emails_confirmacion: Number(found.emails_confirmacion || 0) + 1 });
@@ -163,7 +156,6 @@ function handleConfirm_(req) {
       updateObj_(T.SUBS, sub._row, { estado: 'Confirmado', fecha_confirmacion: new Date() });
       sub.estado = 'Confirmado';
       try { if (canSend_(1)) sendWelcome_(sub); } catch (err) { logError_('bienvenida', err); }
-      if (sub.contacto === 'SI') createLead_(sub);
     }
     return { ok: true, plan: c.PLAN_URL, marketing: sub.marketing === 'SI' };
   });
@@ -178,20 +170,6 @@ function handleUnsub_(req) {
     if (sub.estado !== 'Baja') updateObj_(T.SUBS, sub._row, { estado: 'Baja', marketing: 'NO', fecha_baja: new Date() });
     return { ok: true };
   });
-}
-
-/** Crea el contacto (lead) y avisa al centro. Solo se llama con el email ya confirmado. */
-function createLead_(sub) {
-  const c = cfg_();
-  const lead = {
-    id: shortId_(), fecha: new Date(), email: sub.email, nombre: sub.nombre || '', telefono: sub.telefono || '',
-    ciudad: sub.ciudad, estado: 'Nuevo', centro: c.LEAD_CENTER || '',
-  };
-  appendObj_(T.LEADS, lead);
-  if (c.LEAD_NOTIFY_EMAIL && canSend_(1)) {
-    try { mail_(c.LEAD_NOTIFY_EMAIL, 'Nuevo contacto: clase de prueba (Ritmo Híbrido)', leadEmail_(lead)); }
-    catch (err) { logError_('aviso-contacto', err); }
-  }
 }
 
 // -------------------------------------------------------- Envío de campañas
@@ -430,7 +408,7 @@ function writeCell_(range, v) {
 function cfg_() {
   const out = {};
   table_(T.CFG).rows.forEach(r => { if (r.clave) out[r.clave] = r.valor === undefined ? '' : r.valor; });
-  CFG_DEFAULTS.forEach(([k, v]) => { if (out[k] === undefined || out[k] === '') out[k] = (k === 'REPLY_TO' || k === 'LEAD_NOTIFY_EMAIL') ? '' : (out[k] || v); });
+  CFG_DEFAULTS.forEach(([k, v]) => { if (out[k] === undefined || out[k] === '') out[k] = (k === 'REPLY_TO') ? '' : (out[k] || v); });
   return out;
 }
 

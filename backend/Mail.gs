@@ -103,17 +103,6 @@ function welcomeEmail_(sub) {
   });
 }
 
-function leadEmail_(lead) {
-  const row = (k, v) => '<tr><td style="padding:6px 12px 6px 0;color:' + MAIL_C.mut + '">' + k + '</td><td style="padding:6px 0"><strong>' + esc_(v || '—') + '</strong></td></tr>';
-  return layout_({
-    title: 'Nuevo contacto',
-    bodyHtml: '<p style="margin:0 0 16px">Una persona ha pedido, desde Ritmo Híbrido, que la contactéis para una clase de prueba. Ha confirmado su email y ha aceptado compartir estos datos con vosotros.</p>' +
-      '<table role="presentation" style="margin:0 0 16px">' + row('Nombre', lead.nombre) + row('Email', lead.email) + row('Teléfono', lead.telefono) + row('Zona', CITIES[lead.ciudad] || lead.ciudad) + '</table>' +
-      '<p style="margin:0 0 16px">Usad estos datos solo para contestar a esta petición.</p>',
-    reason: 'Aviso automático de Ritmo Híbrido.',
-  });
-}
-
 function campaignEmail_(camp, sub) {
   const c = cfg_();
   let ad = '';

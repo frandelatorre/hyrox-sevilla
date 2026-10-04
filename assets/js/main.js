@@ -99,19 +99,6 @@ document.querySelectorAll('form[data-signup]').forEach(form => {
     upcoming().map(r => `<option value="${r.id}">${r.city} · ${r.label}</option>`).join('') +
     '<option value="ninguna">Todavía ninguna</option>';
 
-  // La petición de clase de prueba solo aplica en Sevilla (donde está el centro colaborador)
-  const city = $('select[name="ciudad"]'), lead = $('[data-ask-lead]'), leadFields = $('[data-lead-fields]');
-  const syncLead = () => {
-    const sev = city.value === 'sevilla';
-    lead.hidden = !sev;
-    if (!sev) form.querySelectorAll('input[name="contacto"]').forEach(r => { r.checked = false; });
-    const yes = sev && ($('input[name="contacto"]:checked') || {}).value === 'SI';
-    leadFields.hidden = !yes;
-  };
-  city.addEventListener('change', syncLead);
-  form.querySelectorAll('input[name="contacto"]').forEach(r => r.addEventListener('change', syncLead));
-  syncLead();
-
   const msg = $('.form-msg');
   const say = (text, bad) => { msg.textContent = text; msg.dataset.bad = bad ? '1' : ''; msg.hidden = !text; };
 
@@ -120,14 +107,12 @@ document.querySelectorAll('form[data-signup]').forEach(form => {
     const f = Object.fromEntries(new FormData(form).entries());
     if (!f.ciudad) return say('Elige tu ciudad.', true);
     if (!f.marketing) return say('Indica si quieres recibir el email mensual (sí o no).', true);
-    if (city.value === 'sevilla' && !f.contacto) return say('Indica si quieres que te llamen para una clase de prueba (sí o no).', true);
 
     const btn = $('button[type="submit"]'), label = btn.textContent;
     btn.disabled = true; btn.textContent = 'Enviando…'; say('');
     try {
       const out = await rhApi({
         action: 'signup', email: f.email, ciudad: f.ciudad, carrera: f.carrera || '', marketing: f.marketing,
-        contacto: f.contacto || 'NO', nombre: f.nombre || '', telefono: f.telefono || '',
         web: f.web || '', ms: Date.now() - t0, origen: location.pathname.replace(/\/$/, '') || '/',
       });
       if (out === null) { // demostración: sin backend

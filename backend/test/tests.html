@@ -81,7 +81,7 @@ const results = [];
 function check(name, cond, extra) { results.push({ name, ok: !!cond, extra: cond ? '' : extra }); }
 const post = body => JSON.parse(doPost({ postData: { contents: JSON.stringify(body) } }).getContent());
 const subs = () => table_(T.SUBS).rows;
-const form = (o = {}) => Object.assign({ action: 'signup', email: 'ana@example.com', ciudad: 'sevilla', carrera: 'malaga', marketing: 'SI', contacto: 'SI', nombre: 'Ana', ms: 5000, origen: '/' }, o);
+const form = (o = {}) => Object.assign({ action: 'signup', email: 'ana@example.com', ciudad: 'sevilla', carrera: 'malaga', marketing: 'SI', ms: 5000, origen: '/' }, o);
 const tokenOf = html => (html.match(/\?t=([a-f0-9]{32})/) || [])[1];
 const lastMail = () => G.sent[G.sent.length - 1];
 
@@ -112,13 +112,12 @@ async function run() {
   post(form());
   check('doble envío en 1 minuto no manda otro email', G.sent.length === 1);
   G.cache = {};
-  post(form({ nombre: 'Ana B' }));
+  post(form({ carrera: 'madrid' }));
   check('reenvío tras el minuto reutiliza la fila (sin duplicar)', subs().length === 1 && G.sent.length === 2);
   G.cache = {}; post(form()); G.cache = {}; post(form()); G.cache = {}; post(form());
   check('máximo 3 emails de confirmación por persona', G.sent.length === 3, G.sent.length);
 
   // --- Confirmar
-  setCfg_('LEAD_NOTIFY_EMAIL', 'centro@example.com');
   const tok = subs()[0].token;
   check('token mal formado se rechaza', post({ action: 'confirm', token: 'x' }).error === 'token');
   check('token desconocido se rechaza', post({ action: 'confirm', token: 'a'.repeat(32) }).error === 'token');
@@ -127,10 +126,10 @@ async function run() {
   check('pasa a Confirmado', subs()[0].estado === 'Confirmado' && subs()[0].fecha_confirmacion instanceof Date);
   const mails = G.sent.map(m => m.subject);
   check('se envía la bienvenida con el plan', mails.some(s => /plan de 16 semanas/.test(s)));
-  check('con contacto SI se crea el lead y se avisa al centro', table_(T.LEADS).rows.length === 1 && G.sent.some(m => m.to === 'centro@example.com'));
+  check('confirmar no envía datos a nadie más: todos los emails van a la propia persona', G.sent.every(m => m.to === 'ana@example.com') && table_(T.LEADS).rows.length === 0);
   const n = G.sent.length; post({ action: 'confirm', token: tok });
-  check('confirmar dos veces no repite emails ni leads', G.sent.length === n && table_(T.LEADS).rows.length === 1);
-  check('el aviso al centro incluye los datos', /Ana/.test(G.sent.find(m => m.to === 'centro@example.com').htmlBody));
+  check('confirmar dos veces no repite emails', G.sent.length === n);
+  check('la bienvenida con consentimiento menciona el email mensual', /una vez al mes|cada mes/.test(G.sent.find(m => /plan de 16 semanas/.test(m.subject)).htmlBody));
 
   // --- Baja y re-alta
   r = post({ action: 'unsub', token: tok });
@@ -139,17 +138,16 @@ async function run() {
   check('re-alta tras la baja vuelve a Pendiente con token nuevo', subs()[0].estado === 'Pendiente' && subs()[0].token !== tok);
 
   // --- Casos límite
-  G.cache = {}; post(form({ email: 'madrid@example.com', ciudad: 'madrid', contacto: 'SI' }));
-  check('contacto SI fuera de Sevilla se ignora', subs().find(s => s.email === 'madrid@example.com').contacto === 'NO');
-  G.cache = {}; post(form({ email: 'inj@example.com', nombre: '=HYPERLINK("http://x","y")', telefono: '+34 600 000 000' }));
+  G.cache = {}; post(form({ email: 'nomkt@example.com', marketing: 'NO' })); const nm = subs().find(s => s.email === 'nomkt@example.com'); post({ action: 'confirm', token: nm.token });
+  check('sin consentimiento: recibe el plan pero se le dice que no habrá más emails', /no te enviaremos nada más/.test(lastMail().htmlBody) && subs().find(s => s.email === 'nomkt@example.com').marketing === 'NO');
+  G.cache = {}; post(form({ email: 'inj@example.com', origen: '=HYPERLINK("http://x","y")' }));
   const inj = subs().find(s => s.email === 'inj@example.com');
   const raw = G.sheets['Suscriptores'].rows.find(r => r[2] === 'inj@example.com');
-  check('las fórmulas escritas por usuarios se neutralizan', inj.nombre.startsWith('=') && inj.telefono === '+34 600 000 000' && true);
-  check('el teléfono se guarda como texto', typeof inj.telefono === 'string');
+  check('un texto que empieza por = se guarda como texto, no como fórmula', inj.origen.startsWith('=') && G.sheets['Suscriptores'].rows.length > 1);
 
   // --- Campañas
   G.reset(); setup();
-  const mk = (email, ciudad, marketing = 'SI', estado = 'Confirmado') => appendObj_(T.SUBS, { id: shortId_(), fecha_alta: new Date(), email, ciudad, carrera: 'malaga', origen: '/', estado, marketing, contacto: 'NO', fecha_confirmacion: estado === 'Pendiente' ? '' : new Date(), token: token_(), emails_confirmacion: 1 });
+  const mk = (email, ciudad, marketing = 'SI', estado = 'Confirmado') => appendObj_(T.SUBS, { id: shortId_(), fecha_alta: new Date(), email, ciudad, carrera: 'malaga', origen: '/', estado, marketing, fecha_confirmacion: estado === 'Pendiente' ? '' : new Date(), token: token_(), emails_confirmacion: 1 });
   for (let i = 0; i < 6; i++) mk('s' + i + '@example.com', 'sevilla');
   mk('m1@example.com', 'madrid'); mk('no@example.com', 'sevilla', 'NO'); mk('baja@example.com', 'sevilla', 'SI', 'Baja'); mk('pend@example.com', 'sevilla', 'SI', 'Pendiente');
   const camp = table_(T.CAMP).rows[0];

@@ -91,7 +91,7 @@ function buildStats_(d, nowDate) {
     { k: 'registros', label: 'Formularios enviados', value: subs.length, base: null },
     { k: 'confirmados', label: 'Email confirmado', value: confirmedEver.length, base: 0, baseLabel: 'formularios' },
     { k: 'marketing', label: 'Aceptan el email mensual', value: marketingOn, base: 1, baseLabel: 'confirmados' },
-    { k: 'contactos', label: 'Piden clase de prueba', value: leads.length, base: 1, baseLabel: 'confirmados' },
+    { k: 'contactos', label: 'Contactos con el centro', value: leads.length, base: 1, baseLabel: 'confirmados' },
     { k: 'contactados', label: 'Contactados por el centro', value: contacted, base: 3, baseLabel: 'peticiones' },
     { k: 'cierres', label: 'Cierres (altas en el centro)', value: closed.length, base: 4, baseLabel: 'contactados' },
     { k: 'comision', label: 'Comisión acumulada (€)', value: sum(closed), base: null, euros: true },
@@ -171,7 +171,6 @@ function systemInfo_(d) {
   const checks = [
     { k: 'Disparador diario de envíos', ok: triggers.indexOf('runDailyJob') >= 0, msg: 'Falta: ejecuta "setup" otra vez' },
     { k: 'Contraseña del panel', ok: !!PropertiesService.getScriptProperties().getProperty('PANEL_PASSWORD'), msg: 'Falta PANEL_PASSWORD' },
-    { k: 'Email del centro para avisar de contactos', ok: !!cfg.LEAD_NOTIFY_EMAIL, msg: 'Config > LEAD_NOTIFY_EMAIL vacío: no se avisa al centro' },
     { k: 'URL de la web', ok: /^https:\/\//.test(cfg.SITE_URL || ''), msg: 'Config > SITE_URL debe empezar por https://' },
   ];
   const pend = d.subs.filter(s => s.estado === 'Pendiente');
