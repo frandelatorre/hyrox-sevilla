@@ -96,55 +96,55 @@ async function run() {
   const before = G.props.PANEL_PASSWORD; setup();
   check('setup repetido no cambia la contraseña ni duplica el disparador', G.props.PANEL_PASSWORD === before && G.triggers.length === 1);
 
-  // --- Alta
+  // --- Alta de un solo paso
+  const clearThrottle = () => Object.keys(G.cache).filter(k => k.startsWith('sg:')).forEach(k => delete G.cache[k]);
   check('email inválido se rechaza', post(form({ email: 'nope' })).error === 'email');
   check('ciudad desconocida se rechaza', post(form({ ciudad: 'xx' })).error === 'ciudad');
   post(form({ email: 'bot@example.com', web: 'http://spam' }));
   post(form({ email: 'rapido@example.com', ms: 300 }));
-  check('bot (campo trampa) y envío instantáneo no crean fila', subs().length === 0 && G.sent.length === 0);
+  check('bot (campo trampa) y envío instantáneo no crean fila ni envían nada', subs().length === 0 && G.sent.length === 0);
 
   let r = post(form());
-  check('alta correcta responde ok', r.ok === true);
-  check('queda Pendiente con token', subs().length === 1 && subs()[0].estado === 'Pendiente' && /^[a-f0-9]{32}$/.test(subs()[0].token));
-  check('se envía 1 email de confirmación con enlace', G.sent.length === 1 && G.sent[0].to === 'ana@example.com' && tokenOf(G.sent[0].htmlBody) === subs()[0].token);
-  check('el email lleva versión de texto plano', G.sent[0].body.includes('/confirmar/?t='));
-  post(form());
-  check('doble envío en 1 minuto no manda otro email', G.sent.length === 1);
-  G.cache = {};
-  post(form({ carrera: 'madrid' }));
-  check('reenvío tras el minuto reutiliza la fila (sin duplicar)', subs().length === 1 && G.sent.length === 2);
-  G.cache = {}; post(form()); G.cache = {}; post(form()); G.cache = {}; post(form());
-  check('máximo 3 emails de confirmación por persona', G.sent.length === 3, G.sent.length);
-
-  // --- Confirmar
-  const tok = subs()[0].token;
-  check('token mal formado se rechaza', post({ action: 'confirm', token: 'x' }).error === 'token');
-  check('token desconocido se rechaza', post({ action: 'confirm', token: 'a'.repeat(32) }).error === 'token');
-  r = post({ action: 'confirm', token: tok });
-  check('confirmar devuelve el PDF', r.ok && /\.pdf$/.test(r.plan), JSON.stringify(r));
-  check('pasa a Confirmado', subs()[0].estado === 'Confirmado' && subs()[0].fecha_confirmacion instanceof Date);
-  const mails = G.sent.map(m => m.subject);
-  check('se envía la bienvenida con el plan', mails.some(s => /plan de 16 semanas/.test(s)));
-  check('confirmar no envía datos a nadie más: todos los emails van a la propia persona', G.sent.every(m => m.to === 'ana@example.com') && table_(T.LEADS).rows.length === 0);
-  const n = G.sent.length; post({ action: 'confirm', token: tok });
-  check('confirmar dos veces no repite emails', G.sent.length === n);
-  check('la bienvenida avisa de que habrá comunicaciones, sin fijar frecuencia', /de vez en cuando/.test(G.sent.find(m => /plan de 16 semanas/.test(m.subject)).htmlBody));
+  check('alta correcta responde ok y devuelve el enlace del plan', r.ok === true && /\.pdf$/.test(r.plan), JSON.stringify(r));
+  const s0 = subs()[0];
+  check('queda Confirmado al instante, con consentimiento, versión del texto y fecha', s0.estado === 'Confirmado' && s0.marketing === 'SI' && s0.consentimiento === CONSENT_VERSION && s0.fecha_confirmacion instanceof Date && /^[a-f0-9]{32}$/.test(s0.token), JSON.stringify(s0));
+  check('se envía un único email: el plan, con enlace de baja y el aviso de las comunicaciones', G.sent.length === 1 && G.sent[0].to === 'ana@example.com' && /plan de 16 semanas/.test(G.sent[0].subject) && G.sent[0].htmlBody.includes('/baja/?t=' + s0.token) && /de vez en cuando/.test(G.sent[0].htmlBody) && /no has sido tú/.test(G.sent[0].htmlBody));
+  check('no se envía ningún email de confirmación', !G.sent.some(m => /Confirma tu email/.test(m.subject)));
+  check('el email lleva texto plano con el enlace de descarga', G.sent[0].body.includes('.pdf'));
+  r = post(form());
+  check('doble envío en 1 minuto no manda otro email y sigue dando el enlace', G.sent.length === 1 && /\.pdf$/.test(r.plan));
+  const firstConsent = +s0.fecha_confirmacion;
+  clearThrottle(); post(form({ carrera: 'madrid' }));
+  check('repetir el alta reutiliza la fila, actualiza la carrera, reenvía el plan y no cambia la fecha de consentimiento', subs().length === 1 && subs()[0].carrera === 'madrid' && G.sent.length === 2 && +subs()[0].fecha_confirmacion === firstConsent);
+  for (let i = 0; i < 6; i++) { clearThrottle(); post(form()); }
+  check('máximo 6 emails del plan por persona', G.sent.length === 6, G.sent.length);
 
   // --- Baja y re-alta
+  const tok = subs()[0].token;
+  check('baja con token mal formado o desconocido se rechaza', post({ action: 'unsub', token: 'x' }).error === 'token' && post({ action: 'unsub', token: 'a'.repeat(32) }).error === 'token');
   r = post({ action: 'unsub', token: tok });
   check('la baja funciona con un clic', r.ok && subs()[0].estado === 'Baja' && subs()[0].marketing === 'NO');
-  G.cache = {}; post(form());
-  check('re-alta tras la baja vuelve a Pendiente con token nuevo', subs()[0].estado === 'Pendiente' && subs()[0].token !== tok);
+  const sentBefore = G.sent.length;
+  clearThrottle(); post(form());
+  check('re-alta tras la baja: vuelve a Confirmado, token nuevo y recibe el plan', subs()[0].estado === 'Confirmado' && subs()[0].token !== tok && G.sent.length === sentBefore + 1);
+  check('el enlace de baja antiguo ya no afecta a la nueva alta', post({ action: 'unsub', token: tok }).error === 'token' && subs()[0].estado === 'Confirmado');
+
+  // --- Enlaces de confirmación antiguos (de antes del alta de un solo paso)
+  appendObj_(T.SUBS, { id: 'old1', fecha_alta: new Date(), email: 'antiguo@example.com', ciudad: 'sevilla', estado: 'Pendiente', marketing: 'SI', token: 'b'.repeat(32), emails_confirmacion: 1 });
+  r = post({ action: 'confirm', token: 'b'.repeat(32) });
+  check('un enlace de confirmación antiguo activa el alta y envía el plan', r.ok && subs().find(s => s.email === 'antiguo@example.com').estado === 'Confirmado' && lastMail().to === 'antiguo@example.com');
+  const n2 = G.sent.length; post({ action: 'confirm', token: 'b'.repeat(32) });
+  check('confirmar dos veces no repite el email', G.sent.length === n2);
 
   // --- Casos límite
-  const cs = subs().find(s => s.email === 'ana@example.com');
-  check('al confirmar queda registrado el consentimiento (SI + versión del texto + fecha)', cs.marketing === 'SI' && cs.consentimiento === CONSENT_VERSION && cs.fecha_confirmacion instanceof Date, JSON.stringify(cs));
-  G.cache = {}; post(form({ email: 'pend2@example.com' }));
-  check('antes de confirmar no se le envía nada comercial: solo la confirmación', G.sent.filter(m => m.to === 'pend2@example.com').length === 1 && /Confirma tu email/.test(lastMail().subject) && /comunicaciones informativas y comerciales/.test(lastMail().htmlBody));
-  G.cache = {}; post(form({ email: 'inj@example.com', origen: '=HYPERLINK("http://x","y")' }));
+  clearThrottle(); post(form({ email: 'inj@example.com', origen: '=HYPERLINK("http://x","y")' }));
   const inj = subs().find(s => s.email === 'inj@example.com');
-  const raw = G.sheets['Suscriptores'].rows.find(r => r[2] === 'inj@example.com');
-  check('un texto que empieza por = se guarda como texto, no como fórmula', inj.origen.startsWith('=') && G.sheets['Suscriptores'].rows.length > 1);
+  check('un texto que empieza por = se guarda como texto, no como fórmula', inj.origen.startsWith('='));
+  check('ningún email sale hacia terceros: solo a quien pidió el plan', G.sent.every(m => /^(ana|antiguo|inj)@example\.com$/.test(m.to)));
+  G.sent = [];
+  let busy = 0;
+  for (let i = 0; i < 45; i++) { clearThrottle(); if (post(form({ email: 'masa' + i + '@example.com' })).error === 'busy') busy++; }
+  check('límite de 40 altas por hora: el resto recibe "busy" y no se les envía nada', busy > 0 && G.sent.length === 45 - busy && G.sent.length <= 40, busy + ' busy, ' + G.sent.length + ' enviados');
 
   // --- Campañas
   G.reset(); setup();
@@ -191,11 +191,11 @@ async function run() {
   // --- Panel
   check('panel sin contraseña correcta se rechaza', post({ action: 'stats', password: 'mal' }).error === 'bad');
   r = post({ action: 'stats', password: G.props.PANEL_PASSWORD });
-  check('panel con la contraseña devuelve datos', r.ok && r.stats.kpis && r.stats.embudo.length === 7 && r.stats.sistema, JSON.stringify(r).slice(0, 200));
+  check('panel con la contraseña devuelve datos', r.ok && r.stats.kpis && r.stats.embudo.length === 6 && r.stats.sistema, JSON.stringify(r).slice(0, 200));
   const k = r.stats.kpis;
   check('KPI activos = 8 (6 sev + 1 mad + 1 sin emails mensuales)', k.activos.value === 8, k.activos.value);
   check('KPI comisión del mes = 30 y cierres = 1', k.comision.value === 30 && k.cierres.value === 1, JSON.stringify(k));
-  check('embudo: 10 formularios y 9 confirmados (todos menos el pendiente)', r.stats.embudo[0].value === 10 && r.stats.embudo[1].value === 9, JSON.stringify(r.stats.embudo.slice(0, 3)));
+  check('embudo: 10 altas y 8 siguen suscritos (sin la baja y el pendiente heredado)', r.stats.embudo[0].value === 10 && r.stats.embudo[1].value === 8, JSON.stringify(r.stats.embudo.slice(0, 3)));
   check('12 semanas y las altas recientes cuentan en la última', r.stats.semanas.length === 12 && r.stats.semanas[11].altas === 9 && r.stats.semanas[11].bajas === 0, JSON.stringify(r.stats.semanas[11]));
   check('sistema informa cuota y disparador', r.stats.sistema.triggers.includes('runDailyJob') && typeof r.stats.sistema.cuotaRestante === 'number');
   for (let i = 0; i < 5; i++) post({ action: 'stats', password: 'x' + i });

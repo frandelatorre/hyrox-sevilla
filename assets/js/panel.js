@@ -45,12 +45,11 @@
       },
       semanas,
       embudo: [
-        { k: 'registros', label: 'Formularios enviados', value: 231, base: null },
-        { k: 'confirmados', label: 'Email confirmado', value: 170, base: 0, baseLabel: 'formularios' },
-        { k: 'activos', label: 'Siguen suscritos (sin baja)', value: 164, base: 1, baseLabel: 'confirmados' },
-        { k: 'contactos', label: 'Contactos con el centro', value: 28, base: 1, baseLabel: 'confirmados' },
-        { k: 'contactados', label: 'Contactados por el centro', value: 24, base: 3, baseLabel: 'contactos' },
-        { k: 'cierres', label: 'Cierres (altas en el centro)', value: 6, base: 4, baseLabel: 'contactados' },
+        { k: 'registros', label: 'Altas (planes pedidos)', value: 231, base: null },
+        { k: 'activos', label: 'Siguen suscritos (sin baja)', value: 214, base: 0, baseLabel: 'altas' },
+        { k: 'contactos', label: 'Contactos con el centro', value: 28, base: 1, baseLabel: 'suscritos' },
+        { k: 'contactados', label: 'Contactados por el centro', value: 24, base: 2, baseLabel: 'contactos' },
+        { k: 'cierres', label: 'Cierres (altas en el centro)', value: 6, base: 3, baseLabel: 'contactados' },
         { k: 'comision', label: 'Comisión acumulada (€)', value: 180, base: null, euros: true },
       ],
       ciudades: [
@@ -60,7 +59,7 @@
       ],
       carreras: [{ carrera: 'malaga', activos: 74 }, { carrera: 'madrid', activos: 38 }, { carrera: 'bilbao', activos: 15 }, { carrera: 'Sin elegir', activos: 21 }],
       origenes: [
-        { origen: '/plan', registros: 140, confirmados: 109, conversion: 0.78 }, { origen: '/', registros: 91, confirmados: 61, conversion: 0.67 },
+        { origen: '/plan', registros: 140, activos: 131, bajas: 9 }, { origen: '/', registros: 91, activos: 83, bajas: 8 },
       ],
       emails: [
         { id: 'a1', mes: '2026-12', asunto: 'Empieza ya el plan para Málaga', estado: 'Borrador', publi: true, segmento: 'Todas', fecha: next(2), destinatarios: 121, enviados: 0, errores: 0, pendientes: 121 },
@@ -76,7 +75,7 @@
       },
       dinero: { meses, total: meses.reduce((t, m) => t + m.total, 0), cierresTotal: 6, comisionTotal: 180 },
       sistema: {
-        cuotaRestante: 87, triggers: ['runDailyJob'], ultimaEjecucion: now.toISOString(), pendientesConfirmar: 6, sinEmailConfirmacion: 0,
+        cuotaRestante: 87, triggers: ['runDailyJob'], ultimaEjecucion: now.toISOString(), sinEmailPlan: 0,
         checks: [
           { k: 'Disparador diario de envíos', ok: true }, { k: 'Contraseña del panel', ok: true },
           { k: 'URL de la web', ok: true },
@@ -121,7 +120,7 @@
       weeks.map((w, i) => `<text x="${x(i)}" y="${H - 10}" text-anchor="middle">${w.label}</text>`).join('') +
       `<path d="${line('bajas')}" fill="none" stroke="#FF6B6B" stroke-width="2" stroke-dasharray="6 5"/><path d="${line('altas')}" fill="none" stroke="#F2F4F7" stroke-width="3"/>` +
       dots('bajas', '#FF6B6B') + dots('altas', '#F2F4F7') + '</svg>' +
-      '<div class="legend"><span><i></i>Nuevos suscriptores confirmados</span><span><i class="d"></i>Bajas</span></div>';
+      '<div class="legend"><span><i></i>Nuevas altas</span><span><i class="d"></i>Bajas</span></div>';
   }
 
   // ---------------------------------------------------------------- Vistas
@@ -140,7 +139,7 @@
 
     embudo(s) {
       const first = s.embudo[0].value || 1;
-      return '<h2>Embudo</h2><p class="sub">Del formulario a la comisión, en personas únicas. El porcentaje es respecto al paso indicado debajo de la cifra.</p><div class="card"><div class="funnel">' +
+      return '<h2>Embudo</h2><p class="sub">De la alta a la comisión, en personas únicas. El porcentaje es respecto al paso indicado debajo de la cifra.</p><div class="card"><div class="funnel">' +
         s.embudo.map(e => {
           const base = e.base === null ? null : s.embudo[e.base].value;
           const w = e.euros ? 0 : Math.max(0, Math.min(100, e.value / first * 100));
@@ -159,7 +158,7 @@
       const bars = (rows, label, val) => { const m = Math.max(1, ...rows.map(r => r[val])); return rows.length ? rows.map(r => `<div class="hbar"><span>${esc(r[label])}</span><div class="b"><span style="width:${r[val] / m * 100}%"></span></div><span class="n">${r[val]}</span></div>`).join('') : '<p class="empty">Todavía no hay datos.</p>'; };
       return '<h2>Comparativas</h2><p class="sub">Dónde y por qué página llegan las personas.</p>' +
         table('Por ciudad', ['Ciudad', 'Formularios', 'Activos', 'Contactos', 'Cierres'], s.ciudades.map(c => [c.ciudad, c.registros, c.activos, c.contactos, c.cierres]), { numeric: [1, 2, 3, 4] }) +
-        table('Por página de alta', ['Página', 'Formularios', 'Confirmados', 'Conversión'], s.origenes.map(o => [o.origen, o.registros, o.confirmados, pct(o.conversion)]), { numeric: [1, 2, 3] }) +
+        table('Por página de alta', ['Página', 'Altas', 'Siguen suscritos', 'Bajas'], s.origenes.map(o => [o.origen, o.registros, o.activos, o.bajas]), { numeric: [1, 2, 3] }) +
         `<div class="card"><h3>Carrera que preparan (suscriptores activos)</h3>${bars(s.carreras, 'carrera', 'activos')}</div>`;
     },
 
@@ -179,7 +178,7 @@
         '<div class="card"><h3>Estado</h3><ul class="checks">' +
         `<li><span class="dot ${y.cuotaRestante > 10 ? '' : 'warn'}"></span><span>Cuota de email restante hoy: <b>${nf.format(y.cuotaRestante)}</b></span></li>` +
         `<li><span class="dot"></span><span>Último envío automático: <b>${esc(when)}</b></span></li>` +
-        `<li><span class="dot ${y.sinEmailConfirmacion ? 'ko' : ''}"></span><span>Pendientes de confirmar: <b>${y.pendientesConfirmar}</b> (sin email de confirmación enviado: <b>${y.sinEmailConfirmacion}</b>)</span></li>` +
+        `<li><span class="dot ${y.sinEmailPlan ? 'ko' : ''}"></span><span>Altas sin email del plan enviado: <b>${y.sinEmailPlan}</b> (se reintentan cada día)</span></li>` +
         `<li><span class="dot"></span><span>Filas: ${y.filas.suscriptores} suscriptores · ${y.filas.contactos} contactos · ${y.filas.campanas} campañas · ${y.filas.envios} envíos</span></li></ul></div></div>` +
         table('Errores de los últimos 7 días', ['Cuándo', 'Dónde', 'Detalle'], y.errores.map(e => [e.fecha, e.origen, e.detalle]));
     },

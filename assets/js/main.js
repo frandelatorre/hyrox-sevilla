@@ -118,10 +118,12 @@ document.querySelectorAll('form[data-signup]').forEach(form => {
         form.innerHTML = '<p class="form-ok">¡Hecho! (modo demostración)</p>' +
           '<a class="btn" href="' + (form.dataset.plan || '') + '" download>Descargar el plan (PDF)</a>';
       } else if (out.ok) {
-        form.innerHTML = '<p class="form-ok">Casi listo: confirma tu email.</p>' +
-          '<p class="form-sub">Te hemos enviado un mensaje con un botón de confirmación. Si no lo ves en unos minutos, mira en spam o promociones.</p>';
+        const pdf = out.plan || form.dataset.plan;
+        form.innerHTML = '<p class="form-ok">¡Listo! Ya tienes el plan.</p>' +
+          (pdf ? '<a class="btn" href="' + pdf + '" download>Descargar el plan (PDF)</a>' : '') +
+          '<p class="form-sub">También te lo hemos enviado por email. Si no lo ves en unos minutos, mira en spam o promociones.</p>';
       } else {
-        const errs = { email: 'Revisa el email: no parece válido.', ciudad: 'Elige tu ciudad.'};
+        const errs = { email: 'Revisa el email: no parece válido.', ciudad: 'Elige tu ciudad.', busy: 'Hay mucha demanda ahora mismo. Inténtalo de nuevo en unos minutos.' };
         say(errs[out.error] || 'No hemos podido enviarlo. Inténtalo de nuevo en un momento.', true);
         btn.disabled = false; btn.textContent = label;
       }

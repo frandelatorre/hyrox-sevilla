@@ -1,6 +1,6 @@
 # Backend de Ritmo Híbrido (Google Sheets + Apps Script)
 
-Recoge las altas del formulario, hace la **doble confirmación por email**, envía el plan, manda las **campañas de email** y alimenta el panel.
+Recoge las altas del formulario, da de alta **en un solo paso** (el plan sale por email al instante), manda las **campañas de email** y alimenta el panel.
 
 ```
 Formulario (web) ──POST──▶ Apps Script ──▶ Google Sheet (datos)
@@ -38,11 +38,11 @@ Si cambias el código más adelante: *Implementar → Gestionar implementaciones
 
 ## Cómo funciona por dentro
 
-- **Doble confirmación.** El alta queda `Pendiente`. El enlace del email lleva a `/confirmar/?t=…` en la web, que confirma con JavaScript (así los escáneres de enlaces del correo no confirman por error). Solo entonces se envía el plan y, si se pidió, se avisa al centro.
+- **Alta de un solo paso.** Al pulsar «Enviarme el plan» la persona queda dada de alta, recibe el plan por email al momento y puede descargarlo en la propia página. El aviso junto al botón y el primer email explican que acepta comunicaciones informativas y comerciales; ese email lleva el enlace de baja y un «si no has sido tú, date de baja». Las páginas `/confirmar/` solo sirven para enlaces antiguos.
 - **Baja con un clic** desde cualquier email (`/baja/?t=…`). Una persona dada de baja no recibe nada más.
-- **Consentimiento único e implícito en el alta:** el aviso bajo el botón del formulario y el email de confirmación explican que, al confirmar, la persona acepta recibir el plan y comunicaciones informativas y comerciales. Al pulsar «Confirmar» se guardan `fecha_confirmacion` y `consentimiento` (versión del texto, `CONSENT_VERSION` en `Code.gs`). Si cambias el aviso del formulario o el texto del email de confirmación, sube esa versión. Los datos de nadie se envían a terceros: Good Training aparece como oferta dentro de los emails.
+- **Consentimiento en el propio alta:** al pulsar el botón se guardan `fecha_confirmacion` (momento del alta) y `consentimiento` (versión del texto, `CONSENT_VERSION` en `Code.gs`). Si cambias el aviso del formulario o el texto del primer email, sube esa versión. Los datos de nadie se envían a terceros: Good Training aparece como oferta dentro de los emails.
 - **Cuota de Gmail.** Una cuenta normal envía 100 emails al día (Workspace, 1.500). Las campañas se reparten solas en varios días, dejan 10 de reserva para confirmaciones y no repiten a nadie. Cada dirección que falla se reintenta una vez.
-- **Antiabuso:** campo trampa oculto, tiempo mínimo de rellenado, 1 envío por minuto y email, máximo 3 emails de confirmación por persona, y los textos se guardan como texto (no como fórmulas).
+- **Antiabuso:** campo trampa oculto, tiempo mínimo de rellenado, 1 envío por minuto y email, máximo 6 emails del plan por persona, **máximo 40 altas por hora en total** (para que nadie agote la cuota de Gmail con el formulario) y los textos se guardan como texto (no como fórmulas).
 - **Panel.** Contraseña en *Configuración del proyecto → Propiedades del script → `PANEL_PASSWORD`*. Cinco fallos seguidos lo bloquean 15 minutos.
 
 ## Pruebas

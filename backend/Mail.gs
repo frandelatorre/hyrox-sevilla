@@ -74,30 +74,17 @@ function layout_(o) {
     '</table></td></tr></table></body></html>';
 }
 
-function confirmEmail_(sub) {
-  const url = cfg_().SITE_URL + '/confirmar/?t=' + sub.token;
-  return layout_({
-    preheader: 'Un clic y te mandamos el plan de 16 semanas.',
-    title: 'Confirma tu email',
-    bodyHtml: '<p style="margin:0 0 16px">Gracias por apuntarte. Pulsa el botón para confirmar tu email y recibir el <strong>plan de 16 semanas</strong>.</p>' +
-      button_(url, 'Confirmar y recibir el plan') +
-      '<p style="margin:0 0 16px;font-size:14px;color:' + MAIL_C.mut + '">Al pulsar el botón confirmas tu email y aceptas recibir el plan y comunicaciones informativas y comerciales de Ritmo Híbrido y de centros colaboradores (novedades, consejos y ofertas). Puedes darte de baja con un clic cuando quieras.</p>' +
-      '<p style="margin:0 0 16px;color:' + MAIL_C.mut + ';font-size:14px">Si el botón no funciona, copia este enlace en tu navegador:<br>' + esc_(url) + '</p>',
-    reason: 'Has recibido este mensaje porque alguien pidió el plan con esta dirección en ritmohibrido.com. Si no has sido tú, ignóralo: no recibirás nada más.',
-  });
-}
-
 function welcomeEmail_(sub) {
   const c = cfg_();
-  const monthly = '<p style="margin:0 0 16px">Además, te escribiremos de vez en cuando con el calendario de carreras y novedades. Si en algún momento no te interesa, te das de baja con un clic al pie de cualquier email.</p>';
+  const consent = '<p style="margin:0 0 16px;font-size:14px;color:' + MAIL_C.mut + '">Al pedir el plan aceptaste recibir, de vez en cuando, comunicaciones informativas y comerciales de Ritmo Híbrido y de centros colaboradores (novedades, consejos y ofertas). Si no te interesa, o no fuiste tú quien lo pidió, puedes darte de baja con un clic al pie de este email.</p>';
   return layout_({
     preheader: 'Aquí tienes tu plan de 16 semanas.',
     title: 'Aquí tienes tu plan',
-    bodyHtml: '<p style="margin:0 0 16px">Email confirmado. Este es tu plan completo de 16 semanas, sesión a sesión, con ritmos, estrategia de carrera y registro de progreso.</p>' +
+    bodyHtml: '<p style="margin:0 0 16px">Gracias por pedirlo. Este es tu plan completo de 16 semanas, sesión a sesión, con ritmos, estrategia de carrera y registro de progreso.</p>' +
       button_(c.PLAN_URL, 'Descargar el plan (PDF)') +
       '<p style="margin:0 0 16px">Un consejo para empezar: cuenta 16 semanas hacia atrás desde tu carrera y marca en el calendario el día de inicio. Tienes las fechas en <a href="' +
-      c.SITE_URL + '/calendario/" style="color:' + MAIL_C.acc + ';font-weight:700">el calendario</a>.</p>' + monthly,
-    reason: 'Recibes este email porque lo pediste en ritmohibrido.com.',
+      c.SITE_URL + '/calendario/" style="color:' + MAIL_C.acc + ';font-weight:700">el calendario</a>.</p>' + consent,
+    reason: 'Recibes este email porque alguien pidió el plan con esta dirección en ritmohibrido.com. Si no has sido tú, date de baja con un clic y no recibirás nada más.',
     unsubUrl: sub.token ? c.SITE_URL + '/baja/?t=' + sub.token : '',
   });
 }

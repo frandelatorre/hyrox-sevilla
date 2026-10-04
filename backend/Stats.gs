@@ -52,7 +52,6 @@ function buildStats_(d, nowDate) {
   const subs = d.subs, leads = d.leads, camps = d.camps;
   const sendsOk = d.sends.filter(r => r.resultado === 'OK');
   const active = subs.filter(s => s.estado === 'Confirmado');
-  const confirmedEver = subs.filter(s => toDate_(s.fecha_confirmacion));
   const closed = leads.filter(l => l.estado === 'Cerrado');
 
   const thisMonth = monthKey_(nowDate);
@@ -87,12 +86,11 @@ function buildStats_(d, nowDate) {
 
   const contacted = leads.filter(l => l.estado === 'Contactado' || l.estado === 'Cerrado').length;
   const embudo = [
-    { k: 'registros', label: 'Formularios enviados', value: subs.length, base: null },
-    { k: 'confirmados', label: 'Email confirmado', value: confirmedEver.length, base: 0, baseLabel: 'formularios' },
-    { k: 'activos', label: 'Siguen suscritos (sin baja)', value: active.length, base: 1, baseLabel: 'confirmados' },
-    { k: 'contactos', label: 'Contactos con el centro', value: leads.length, base: 1, baseLabel: 'confirmados' },
-    { k: 'contactados', label: 'Contactados por el centro', value: contacted, base: 3, baseLabel: 'contactos' },
-    { k: 'cierres', label: 'Cierres (altas en el centro)', value: closed.length, base: 4, baseLabel: 'contactados' },
+    { k: 'registros', label: 'Altas (planes pedidos)', value: subs.length, base: null },
+    { k: 'activos', label: 'Siguen suscritos (sin baja)', value: active.length, base: 0, baseLabel: 'altas' },
+    { k: 'contactos', label: 'Contactos con el centro', value: leads.length, base: 1, baseLabel: 'suscritos' },
+    { k: 'contactados', label: 'Contactados por el centro', value: contacted, base: 2, baseLabel: 'contactos' },
+    { k: 'cierres', label: 'Cierres (altas en el centro)', value: closed.length, base: 3, baseLabel: 'contactados' },
     { k: 'comision', label: 'Comisión acumulada (€)', value: sum(closed), base: null, euros: true },
   ];
 
@@ -116,8 +114,8 @@ function buildStats_(d, nowDate) {
 
   const byOrigin = group(subs, s => s.origen);
   const origenes = Object.keys(byOrigin).map(k => {
-    const reg = byOrigin[k].length, conf = byOrigin[k].filter(s => toDate_(s.fecha_confirmacion)).length;
-    return { origen: k, registros: reg, confirmados: conf, conversion: reg ? conf / reg : 0 };
+    const reg = byOrigin[k].length, act = byOrigin[k].filter(s => s.estado === 'Confirmado').length;
+    return { origen: k, registros: reg, activos: act, bajas: byOrigin[k].filter(s => s.estado === 'Baja').length };
   }).sort((a, b) => b.registros - a.registros);
 
   const campSent = id => sendsOk.filter(r => r.campana === id).length;
@@ -172,13 +170,12 @@ function systemInfo_(d) {
     { k: 'Contraseña del panel', ok: !!PropertiesService.getScriptProperties().getProperty('PANEL_PASSWORD'), msg: 'Falta PANEL_PASSWORD' },
     { k: 'URL de la web', ok: /^https:\/\//.test(cfg.SITE_URL || ''), msg: 'Config > SITE_URL debe empezar por https://' },
   ];
-  const pend = d.subs.filter(s => s.estado === 'Pendiente');
+  const sinPlan = d.subs.filter(s => s.estado === 'Confirmado' && !Number(s.emails_confirmacion || 0));
   return {
     cuotaRestante: MailApp.getRemainingDailyQuota(),
     triggers,
     ultimaEjecucion: toDate_(cfg.ULTIMA_EJECUCION) ? toDate_(cfg.ULTIMA_EJECUCION).toISOString() : null,
-    pendientesConfirmar: pend.length,
-    sinEmailConfirmacion: pend.filter(s => !Number(s.emails_confirmacion || 0)).length,
+    sinEmailPlan: sinPlan.length,
     checks,
     filas: { suscriptores: d.subs.length, contactos: d.leads.length, campanas: d.camps.length, envios: d.sends.length },
     errores: d.log.filter(r => toDate_(r.fecha) && +toDate_(r.fecha) > week).slice(-15).reverse()

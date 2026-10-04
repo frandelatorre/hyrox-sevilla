@@ -10,9 +10,9 @@
 
 const TZ = 'Europe/Madrid';
 
-// Versión del texto de consentimiento (aviso del formulario + email de confirmación). Súbela cada vez que lo cambies:
+// Versión del texto de consentimiento (aviso del formulario y email con el plan). Súbela cada vez que lo cambies:
 // queda guardada junto a la fecha de cada confirmación como prueba de qué aceptó cada persona.
-const CONSENT_VERSION = '2026-10-v2';
+const CONSENT_VERSION = '2026-10-v3';
 
 const T = {
   SUBS: 'Suscriptores',
@@ -78,6 +78,11 @@ function json_(obj) {
 
 // ------------------------------------------------------------------- Alta
 
+/**
+ * Alta de un solo paso: quien pide el plan acepta recibir comunicaciones al pulsar el botón del formulario
+ * (el aviso que lo acompaña lo dice). Se envía el plan en el acto y se guardan la fecha y la versión del texto
+ * (CONSENT_VERSION). La columna `emails_confirmacion` cuenta los emails con el plan enviados (nombre heredado).
+ */
 function handleSignup_(req) {
   const email = String(req.email || '').trim().toLowerCase();
   if (!/^[^\s@]{1,64}@[^\s@]+\.[^\s@]{2,}$/.test(email) || email.length > 120) return { ok: false, error: 'email' };
@@ -92,75 +97,78 @@ function handleSignup_(req) {
   const origen = String(req.origen || '').slice(0, 40);
 
   const cache = CacheService.getScriptCache();
-  if (cache.get('sg:' + email)) return { ok: true };
+  if (cache.get('sg:' + email)) return { ok: true, plan: cfg_().PLAN_URL };
+  if (rateLimited_()) return { ok: false, error: 'busy' };
   cache.put('sg:' + email, '1', 60);
 
   return withLock_(() => {
-    const subs = table_(T.SUBS).rows;
-    const found = subs.find(s => String(s.email).toLowerCase() === email);
-    const data = { ciudad, carrera, origen, marketing: 'SI' };
+    const now = new Date();
+    const found = table_(T.SUBS).rows.find(s => String(s.email).toLowerCase() === email);
+    const data = { ciudad, carrera, origen };
+    const consent = { estado: 'Confirmado', marketing: 'SI', fecha_confirmacion: now, consentimiento: CONSENT_VERSION };
+    let sub, row;
 
     if (!found) {
-      const sub = Object.assign({
-        id: shortId_(), fecha_alta: new Date(), email, estado: 'Pendiente', token: token_(), emails_confirmacion: 0,
-      }, data);
+      sub = Object.assign({ id: shortId_(), fecha_alta: now, email, token: token_(), emails_confirmacion: 0 }, data, consent);
       appendObj_(T.SUBS, sub);
-      const row = lastRow_(T.SUBS);
-      sendConfirmation_(sub, row);
-      return { ok: true };
+      row = lastRow_(T.SUBS);
+    } else {
+      // Ya estaba en la lista: se actualizan sus datos. Si estaba de baja (o pendiente), vuelve a darse de alta.
+      const patch = Object.assign({}, data);
+      if (found.estado !== 'Confirmado') Object.assign(patch, consent, { fecha_alta: now });
+      if (found.estado === 'Baja' || !found.token) patch.token = token_();
+      if (found.estado === 'Baja') patch.emails_confirmacion = 0; // petición nueva: vuelve a poder recibir el plan
+      updateObj_(T.SUBS, found._row, patch);
+      sub = Object.assign(found, patch);
+      row = found._row;
     }
 
-    if (found.estado === 'Confirmado') {
-      // Ya estaba apuntado: actualizamos preferencias y le reenviamos el plan (sin revelar nada en la respuesta)
-      updateObj_(T.SUBS, found._row, data);
-      Object.assign(found, data);
-      if (Number(found.emails_confirmacion || 0) < 6 && canSend_(1)) {
-        sendWelcome_(found);
-        updateObj_(T.SUBS, found._row, { emails_confirmacion: Number(found.emails_confirmacion || 0) + 1 });
-      }
-      return { ok: true };
-    }
-
-    // Pendiente o dada de baja: se vuelve a pedir confirmación
-    const patch = Object.assign({ estado: 'Pendiente', fecha_alta: new Date() }, data);
-    if (found.estado === 'Baja' || !found.token) patch.token = token_();
-    updateObj_(T.SUBS, found._row, patch);
-    Object.assign(found, patch);
-    if (Number(found.emails_confirmacion || 0) < 3) sendConfirmation_(found, found._row);
-    return { ok: true };
+    sendPlan_(sub, row);
+    return { ok: true, plan: cfg_().PLAN_URL };
   });
 }
 
-function sendWelcome_(sub) {
-  mail_(sub.email, "Tu plan de 16 semanas", welcomeEmail_(sub));
-}
-
-function sendConfirmation_(sub, row) {
-  if (!canSend_(1)) { logError_('confirmacion', 'Sin cuota de email: ' + sub.email); return; }
+/** Envía el email con el plan (máximo 6 por persona para que el formulario no sirva para enviar spam). */
+function sendPlan_(sub, row) {
+  const sent = Number(sub.emails_confirmacion || 0);
+  if (sent >= 6) return;
+  if (!canSend_(1)) { logError_('plan', 'Sin cuota de email: ' + sub.email); return; }
   try {
-    mail_(sub.email, 'Confirma tu email para recibir el plan', confirmEmail_(sub));
-    updateObj_(T.SUBS, row, { emails_confirmacion: Number(sub.emails_confirmacion || 0) + 1 });
-    sub.emails_confirmacion = Number(sub.emails_confirmacion || 0) + 1;
+    mail_(sub.email, 'Tu plan de 16 semanas', welcomeEmail_(sub));
+    updateObj_(T.SUBS, row, { emails_confirmacion: sent + 1 });
+    sub.emails_confirmacion = sent + 1;
   } catch (err) {
-    logError_('confirmacion', err);
+    logError_('plan', err);
   }
 }
 
-// ---------------------------------------------------- Confirmación y baja
+/** Máximo 40 altas por hora en total: evita que alguien agote la cuota diaria de emails con el formulario. */
+function rateLimited_() {
+  const cache = CacheService.getScriptCache();
+  const raw = cache.get('hr');
+  let o = raw ? JSON.parse(raw) : { n: 0, t: Date.now() };
+  if (Date.now() - o.t > 36e5) o = { n: 0, t: Date.now() };
+  o.n++;
+  cache.put('hr', JSON.stringify(o), 3600);
+  return o.n > 40;
+}
 
+// ---------------------------------------------------- Enlaces antiguos y baja
+
+/** Solo para enlaces de confirmación enviados antes del alta de un solo paso: activa la alta pendiente. */
 function handleConfirm_(req) {
   const t = String(req.token || '');
   if (!/^[a-f0-9]{32}$/.test(t)) return { ok: false, error: 'token' };
   return withLock_(() => {
     const sub = table_(T.SUBS).rows.find(s => s.token === t);
     if (!sub || sub.estado === 'Baja') return { ok: false, error: 'token' };
-    const c = cfg_();
     if (sub.estado === 'Pendiente') {
-      updateObj_(T.SUBS, sub._row, { estado: 'Confirmado', marketing: 'SI', fecha_confirmacion: new Date(), consentimiento: CONSENT_VERSION });
-      sub.estado = 'Confirmado';
-      try { if (canSend_(1)) sendWelcome_(sub); } catch (err) { logError_('bienvenida', err); }
+      const patch = { estado: 'Confirmado', marketing: 'SI', fecha_confirmacion: new Date(), consentimiento: CONSENT_VERSION };
+      updateObj_(T.SUBS, sub._row, patch);
+      Object.assign(sub, patch);
+      sendPlan_(sub, sub._row);
     }
-    return { ok: true, plan: c.PLAN_URL };
+    return { ok: true, plan: cfg_().PLAN_URL };
   });
 }
 
@@ -177,11 +185,11 @@ function handleUnsub_(req) {
 
 // -------------------------------------------------------- Envío de campañas
 
-/** Se ejecuta cada día (disparador). Reintenta confirmaciones pendientes y envía la campaña que toque. */
+/** Se ejecuta cada día (disparador). Reenvía los planes que no salieron (sin cuota) y envía la campaña que toque. */
 function runDailyJob() {
   const t0 = Date.now();
   try {
-    retryConfirmations_();
+    retryPlanEmails_();
     sendDueCampaign_(t0);
     setCfg_('ULTIMA_EJECUCION', new Date());
   } catch (err) {
@@ -189,12 +197,12 @@ function runDailyJob() {
   }
 }
 
-function retryConfirmations_() {
+function retryPlanEmails_() {
   const limit = Date.now() - 7 * 864e5;
   table_(T.SUBS).rows
-    .filter(s => s.estado === 'Pendiente' && !Number(s.emails_confirmacion || 0) && s.token && +toDate_(s.fecha_alta) > limit)
+    .filter(s => s.estado === 'Confirmado' && !Number(s.emails_confirmacion || 0) && s.token && +toDate_(s.fecha_alta) > limit)
     .slice(0, 20)
-    .forEach(s => sendConfirmation_(s, s._row));
+    .forEach(s => sendPlan_(s, s._row));
 }
 
 function sendDueCampaign_(t0) {
