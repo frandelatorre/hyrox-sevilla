@@ -21,7 +21,6 @@ Web estática: HTML, CSS y JavaScript sin dependencias ni paso de compilación.
 | `assets/css/styles.css` | Estilos comunes |
 | `assets/fonts/` | Tipografías Barlow alojadas aquí (sin Google Fonts) |
 | `assets/js/main.js` | Calendario (`RACES`), cuenta atrás, plan, filtros y formularios |
-| `propuestas/` | Propuestas de diseño iniciales (no indexadas) |
 
 ## Mantenimiento
 

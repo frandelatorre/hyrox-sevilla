@@ -1,5 +1,4 @@
 User-agent: *
-Disallow: /propuestas/
 Disallow: /recursos/
 Disallow: /confirmar/
 Disallow: /baja/
