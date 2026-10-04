@@ -47,7 +47,7 @@
       embudo: [
         { k: 'registros', label: 'Formularios enviados', value: 231, base: null },
         { k: 'confirmados', label: 'Email confirmado', value: 170, base: 0, baseLabel: 'formularios' },
-        { k: 'marketing', label: 'Aceptan el email mensual', value: 121, base: 1, baseLabel: 'confirmados' },
+        { k: 'activos', label: 'Siguen suscritos (sin baja)', value: 164, base: 1, baseLabel: 'confirmados' },
         { k: 'contactos', label: 'Contactos con el centro', value: 28, base: 1, baseLabel: 'confirmados' },
         { k: 'contactados', label: 'Contactados por el centro', value: 24, base: 3, baseLabel: 'contactos' },
         { k: 'cierres', label: 'Cierres (altas en el centro)', value: 6, base: 4, baseLabel: 'contactados' },

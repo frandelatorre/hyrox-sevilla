@@ -10,6 +10,10 @@
 
 const TZ = 'Europe/Madrid';
 
+// Versión del texto de consentimiento (aviso del formulario + email de confirmación). Súbela cada vez que lo cambies:
+// queda guardada junto a la fecha de cada confirmación como prueba de qué aceptó cada persona.
+const CONSENT_VERSION = '2026-10-v1';
+
 const T = {
   SUBS: 'Suscriptores',
   LEADS: 'Contactos',
@@ -21,7 +25,7 @@ const T = {
 
 const COLS = {
   'Suscriptores': ['id', 'fecha_alta', 'email', 'ciudad', 'carrera', 'origen', 'estado', 'marketing',
-    'fecha_confirmacion', 'fecha_baja', 'token', 'emails_confirmacion'],
+    'fecha_confirmacion', 'consentimiento', 'fecha_baja', 'token', 'emails_confirmacion'],
   'Contactos': ['id', 'fecha', 'email', 'nombre', 'telefono', 'ciudad', 'estado', 'centro', 'fecha_cierre', 'comision', 'notas'],
   'Campañas': ['id', 'mes', 'fecha_envio', 'asunto', 'titulo', 'cuerpo', 'publi_activa', 'publi_titulo', 'publi_texto',
     'publi_enlace', 'publi_boton', 'segmento_ciudad', 'estado', 'enviados', 'errores', 'fecha_fin', 'ingreso_publi'],
@@ -84,7 +88,6 @@ function handleSignup_(req) {
 
   const ciudad = CITIES[req.ciudad] ? req.ciudad : null;
   if (!ciudad) return { ok: false, error: 'ciudad' };
-  if (req.marketing !== 'SI' && req.marketing !== 'NO') return { ok: false, error: 'marketing' };
   const carrera = /^[a-z0-9-]{1,20}$/.test(String(req.carrera || '')) ? req.carrera : '';
   const origen = String(req.origen || '').slice(0, 40);
 
@@ -95,7 +98,7 @@ function handleSignup_(req) {
   return withLock_(() => {
     const subs = table_(T.SUBS).rows;
     const found = subs.find(s => String(s.email).toLowerCase() === email);
-    const data = { ciudad, carrera, origen, marketing: req.marketing };
+    const data = { ciudad, carrera, origen, marketing: 'SI' };
 
     if (!found) {
       const sub = Object.assign({
@@ -153,11 +156,11 @@ function handleConfirm_(req) {
     if (!sub || sub.estado === 'Baja') return { ok: false, error: 'token' };
     const c = cfg_();
     if (sub.estado === 'Pendiente') {
-      updateObj_(T.SUBS, sub._row, { estado: 'Confirmado', fecha_confirmacion: new Date() });
+      updateObj_(T.SUBS, sub._row, { estado: 'Confirmado', marketing: 'SI', fecha_confirmacion: new Date(), consentimiento: CONSENT_VERSION });
       sub.estado = 'Confirmado';
       try { if (canSend_(1)) sendWelcome_(sub); } catch (err) { logError_('bienvenida', err); }
     }
-    return { ok: true, plan: c.PLAN_URL, marketing: sub.marketing === 'SI' };
+    return { ok: true, plan: c.PLAN_URL };
   });
 }
 

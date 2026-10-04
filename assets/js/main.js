@@ -106,13 +106,12 @@ document.querySelectorAll('form[data-signup]').forEach(form => {
     e.preventDefault();
     const f = Object.fromEntries(new FormData(form).entries());
     if (!f.ciudad) return say('Elige tu ciudad.', true);
-    if (!f.marketing) return say('Indica si quieres recibir el email mensual (sí o no).', true);
 
     const btn = $('button[type="submit"]'), label = btn.textContent;
     btn.disabled = true; btn.textContent = 'Enviando…'; say('');
     try {
       const out = await rhApi({
-        action: 'signup', email: f.email, ciudad: f.ciudad, carrera: f.carrera || '', marketing: f.marketing,
+        action: 'signup', email: f.email, ciudad: f.ciudad, carrera: f.carrera || '',
         web: f.web || '', ms: Date.now() - t0, origen: location.pathname.replace(/\/$/, '') || '/',
       });
       if (out === null) { // demostración: sin backend
@@ -122,7 +121,7 @@ document.querySelectorAll('form[data-signup]').forEach(form => {
         form.innerHTML = '<p class="form-ok">Casi listo: confirma tu email.</p>' +
           '<p class="form-sub">Te hemos enviado un mensaje con un botón de confirmación. Si no lo ves en unos minutos, mira en spam o promociones.</p>';
       } else {
-        const errs = { email: 'Revisa el email: no parece válido.', ciudad: 'Elige tu ciudad.', marketing: 'Indica si quieres el email mensual.' };
+        const errs = { email: 'Revisa el email: no parece válido.', ciudad: 'Elige tu ciudad.'};
         say(errs[out.error] || 'No hemos podido enviarlo. Inténtalo de nuevo en un momento.', true);
         btn.disabled = false; btn.textContent = label;
       }

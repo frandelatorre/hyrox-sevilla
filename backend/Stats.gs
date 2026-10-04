@@ -85,14 +85,13 @@ function buildStats_(d, nowDate) {
     });
   }
 
-  const marketingOn = confirmedEver.filter(s => s.marketing === 'SI').length;
   const contacted = leads.filter(l => l.estado === 'Contactado' || l.estado === 'Cerrado').length;
   const embudo = [
     { k: 'registros', label: 'Formularios enviados', value: subs.length, base: null },
     { k: 'confirmados', label: 'Email confirmado', value: confirmedEver.length, base: 0, baseLabel: 'formularios' },
-    { k: 'marketing', label: 'Aceptan el email mensual', value: marketingOn, base: 1, baseLabel: 'confirmados' },
+    { k: 'activos', label: 'Siguen suscritos (sin baja)', value: active.length, base: 1, baseLabel: 'confirmados' },
     { k: 'contactos', label: 'Contactos con el centro', value: leads.length, base: 1, baseLabel: 'confirmados' },
-    { k: 'contactados', label: 'Contactados por el centro', value: contacted, base: 3, baseLabel: 'peticiones' },
+    { k: 'contactados', label: 'Contactados por el centro', value: contacted, base: 3, baseLabel: 'contactos' },
     { k: 'cierres', label: 'Cierres (altas en el centro)', value: closed.length, base: 4, baseLabel: 'contactados' },
     { k: 'comision', label: 'Comisión acumulada (€)', value: sum(closed), base: null, euros: true },
   ];

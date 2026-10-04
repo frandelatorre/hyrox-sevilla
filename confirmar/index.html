@@ -40,9 +40,8 @@
     const out = await rhApi({ action: 'confirm', token: t });
     if (out === null) return show('Modo <span class="a">demostración</span>', 'Aún no hay backend conectado, así que no hay nada que confirmar.', '<a class="btn" href="../">Volver al inicio</a>');
     if (out.ok) {
-      show('Email <span class="a">confirmado</span>', out.marketing
-        ? 'Ya puedes descargar tu plan. Te lo hemos enviado también por email. Además, recibirás un email al mes con novedades.'
-        : 'Ya puedes descargar tu plan. Te lo hemos enviado también por email. No te escribiremos nada más.',
+      show('Email <span class="a">confirmado</span>',
+        'Ya puedes descargar tu plan. Te lo hemos enviado también por email. Una vez al mes te escribiremos con novedades y ofertas; puedes darte de baja con un clic desde cualquier mensaje.',
         '<a class="btn" href="' + out.plan + '" download>Descargar el plan (PDF)</a><a class="btn sec" href="../calendario/">Ver calendario</a>');
     } else {
       show('Enlace <span class="a">no válido</span>', 'Este enlace ha caducado o no es correcto. Si quieres el plan, vuelve a pedirlo con tu email.', '<a class="btn" href="../plan/">Pedir el plan</a>');

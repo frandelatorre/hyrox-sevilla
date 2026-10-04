@@ -81,7 +81,7 @@ const results = [];
 function check(name, cond, extra) { results.push({ name, ok: !!cond, extra: cond ? '' : extra }); }
 const post = body => JSON.parse(doPost({ postData: { contents: JSON.stringify(body) } }).getContent());
 const subs = () => table_(T.SUBS).rows;
-const form = (o = {}) => Object.assign({ action: 'signup', email: 'ana@example.com', ciudad: 'sevilla', carrera: 'malaga', marketing: 'SI', ms: 5000, origen: '/' }, o);
+const form = (o = {}) => Object.assign({ action: 'signup', email: 'ana@example.com', ciudad: 'sevilla', carrera: 'malaga', ms: 5000, origen: '/' }, o);
 const tokenOf = html => (html.match(/\?t=([a-f0-9]{32})/) || [])[1];
 const lastMail = () => G.sent[G.sent.length - 1];
 
@@ -99,7 +99,6 @@ async function run() {
   // --- Alta
   check('email inválido se rechaza', post(form({ email: 'nope' })).error === 'email');
   check('ciudad desconocida se rechaza', post(form({ ciudad: 'xx' })).error === 'ciudad');
-  check('sin elegir sí/no de emails se rechaza', post(form({ marketing: '' })).error === 'marketing');
   post(form({ email: 'bot@example.com', web: 'http://spam' }));
   post(form({ email: 'rapido@example.com', ms: 300 }));
   check('bot (campo trampa) y envío instantáneo no crean fila', subs().length === 0 && G.sent.length === 0);
@@ -138,8 +137,10 @@ async function run() {
   check('re-alta tras la baja vuelve a Pendiente con token nuevo', subs()[0].estado === 'Pendiente' && subs()[0].token !== tok);
 
   // --- Casos límite
-  G.cache = {}; post(form({ email: 'nomkt@example.com', marketing: 'NO' })); const nm = subs().find(s => s.email === 'nomkt@example.com'); post({ action: 'confirm', token: nm.token });
-  check('sin consentimiento: recibe el plan pero se le dice que no habrá más emails', /no te enviaremos nada más/.test(lastMail().htmlBody) && subs().find(s => s.email === 'nomkt@example.com').marketing === 'NO');
+  const cs = subs().find(s => s.email === 'ana@example.com');
+  check('al confirmar queda registrado el consentimiento (SI + versión del texto + fecha)', cs.marketing === 'SI' && cs.consentimiento === CONSENT_VERSION && cs.fecha_confirmacion instanceof Date, JSON.stringify(cs));
+  G.cache = {}; post(form({ email: 'pend2@example.com' }));
+  check('antes de confirmar no se le envía nada comercial: solo la confirmación', G.sent.filter(m => m.to === 'pend2@example.com').length === 1 && /Confirma tu email/.test(lastMail().subject) && /una vez al mes/.test(lastMail().htmlBody));
   G.cache = {}; post(form({ email: 'inj@example.com', origen: '=HYPERLINK("http://x","y")' }));
   const inj = subs().find(s => s.email === 'inj@example.com');
   const raw = G.sheets['Suscriptores'].rows.find(r => r[2] === 'inj@example.com');

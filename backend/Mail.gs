@@ -81,6 +81,7 @@ function confirmEmail_(sub) {
     title: 'Confirma tu email',
     bodyHtml: '<p style="margin:0 0 16px">Gracias por apuntarte. Pulsa el botón para confirmar tu email y recibir el <strong>plan de 16 semanas</strong>.</p>' +
       button_(url, 'Confirmar y recibir el plan') +
+      '<p style="margin:0 0 16px;font-size:14px;color:' + MAIL_C.mut + '">Al pulsar el botón confirmas tu email y aceptas recibir el plan y, una vez al mes, comunicaciones informativas y comerciales de Ritmo Híbrido y de centros colaboradores (novedades, consejos y ofertas). Puedes darte de baja con un clic cuando quieras.</p>' +
       '<p style="margin:0 0 16px;color:' + MAIL_C.mut + ';font-size:14px">Si el botón no funciona, copia este enlace en tu navegador:<br>' + esc_(url) + '</p>',
     reason: 'Has recibido este mensaje porque alguien pidió el plan con esta dirección en ritmohibrido.com. Si no has sido tú, ignóralo: no recibirás nada más.',
   });
@@ -88,9 +89,7 @@ function confirmEmail_(sub) {
 
 function welcomeEmail_(sub) {
   const c = cfg_();
-  const monthly = sub.marketing === 'SI'
-    ? '<p style="margin:0 0 16px">Además, cada mes te escribiremos con el calendario de carreras y novedades. Si en algún momento no te interesa, te das de baja con un clic al pie de cualquier email.</p>'
-    : '<p style="margin:0 0 16px">Como nos indicaste, no te enviaremos nada más que este mensaje.</p>';
+  const monthly = '<p style="margin:0 0 16px">Además, cada mes te escribiremos con el calendario de carreras y novedades. Si en algún momento no te interesa, te das de baja con un clic al pie de cualquier email.</p>';
   return layout_({
     preheader: 'Aquí tienes tu plan de 16 semanas.',
     title: 'Aquí tienes tu plan',
