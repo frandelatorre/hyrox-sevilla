@@ -1,0 +1,542 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="robots" content="noindex">
+<title>Plan 16 semanas · Ritmo Híbrido</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,600;0,800;1,800&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  /* Marca Ritmo Híbrido: mismos tokens que la web */
+  :root{
+    --bg:#0E1013; --panel:#171A1F; --line-d:#2A2F37; --txt-d:#F2F4F7; --mut-d:#9AA3AF;
+    --ink:#14171C; --mut:#5E6773; --line:#E2E5EA; --paper:#FFFFFF; --soft:#F5F6F8;
+    --acc:#FF5A1F; --teal:#2EC4B6; --blue:#7896FF;
+    --cond:"Barlow Condensed",sans-serif;
+  }
+  @page{size:A4;margin:0}
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  body{font-family:Barlow,sans-serif;color:var(--ink);font-size:10.5pt;line-height:1.45;background:#777}
+  .page{width:210mm;height:297mm;background:var(--paper);position:relative;overflow:hidden;page-break-after:always;break-after:page;padding:18mm 16mm 20mm}
+  .page:last-child{page-break-after:auto;break-after:auto}
+  @media screen{.page{margin:10mm auto;box-shadow:0 4px 30px rgba(0,0,0,.3)}}
+  .dark{background:var(--bg);color:var(--txt-d)}
+  .cond{font-family:var(--cond);text-transform:uppercase}
+  .logo{font-family:var(--cond);font-weight:800;font-style:italic;text-transform:uppercase;letter-spacing:.5px;white-space:nowrap}
+  .logo b{color:var(--acc)}
+
+  /* Cabecera y pie de las páginas interiores */
+  .run-head{position:absolute;top:8mm;left:16mm;right:16mm;display:flex;justify-content:space-between;align-items:center;font-size:8.5pt;color:var(--mut);border-bottom:1px solid var(--line);padding-bottom:3mm}
+  .run-head .logo{font-size:13pt;color:var(--ink)}
+  .run-foot{position:absolute;bottom:8mm;left:16mm;right:16mm;display:flex;justify-content:space-between;font-size:8pt;color:var(--mut)}
+  .run-foot .pg{font-family:var(--cond);font-weight:800;font-size:11pt;color:var(--acc)}
+  .body{padding-top:6mm}
+
+  /* Tipografía */
+  h1{font-family:var(--cond);font-weight:800;font-style:italic;text-transform:uppercase;line-height:.88;letter-spacing:-.5px}
+  h2{font-family:var(--cond);font-weight:800;font-style:italic;text-transform:uppercase;font-size:30pt;line-height:.95;margin-bottom:4mm}
+  h2 span,.a{color:var(--acc)}
+  h3{font-family:var(--cond);font-weight:800;text-transform:uppercase;font-size:14pt;letter-spacing:.3px;margin:5mm 0 2mm}
+  p{margin-bottom:2.5mm}
+  .lead{font-size:12pt;color:var(--mut);max-width:150mm}
+  .eyebrow{font-weight:700;letter-spacing:2.5px;text-transform:uppercase;font-size:8.5pt;color:var(--teal);margin-bottom:3mm}
+  ul.dash{list-style:none}
+  ul.dash li{position:relative;padding-left:5mm;margin-bottom:1.6mm}
+  ul.dash li:before{content:"";position:absolute;left:0;top:2.2mm;width:3mm;height:.8mm;background:var(--acc)}
+
+  /* Portada */
+  .cover{display:flex;flex-direction:column;justify-content:space-between;padding:22mm 18mm}
+  .cover:before{content:"";position:absolute;inset:0;background:
+     radial-gradient(120mm 80mm at 85% 18%,rgba(255,90,31,.35),transparent 70%),
+     repeating-linear-gradient(-60deg,transparent 0 9mm,rgba(255,255,255,.03) 9mm 9.5mm)}
+  .cover>*{position:relative}
+  .cover .logo{font-size:22pt}
+  .cover h1{font-size:78pt;margin:6mm 0}
+  .cover h1 .o{color:transparent;-webkit-text-stroke:1.5px var(--txt-d)}
+  .cover .lead{color:var(--mut-d);font-size:13pt}
+  .phase-strip{display:grid;grid-template-columns:repeat(4,1fr);gap:3mm;margin-top:10mm}
+  .phase-strip div{border-radius:4mm;padding:4mm;font-size:9.5pt;color:var(--mut-d)}
+  .phase-strip b{display:block;font-family:var(--cond);font-weight:800;font-size:15pt;color:var(--txt-d)}
+  .f1{background:rgba(46,196,182,.16)} .f2{background:rgba(120,150,255,.16)} .f3{background:rgba(255,90,31,.2)} .f4{background:var(--acc)} .f4,.f4 b{color:#fff!important}
+  .cover-foot{display:flex;justify-content:space-between;align-items:end;font-size:9pt;color:var(--mut-d);border-top:1px solid var(--line-d);padding-top:5mm}
+  .fill{border-bottom:1px solid var(--mut-d);display:inline-block;min-width:60mm;height:6mm}
+
+  /* Bloques */
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:6mm}
+  .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:4mm}
+  .box{background:var(--soft);border-radius:3mm;padding:5mm}
+  .box h3{margin-top:0}
+  .key{display:grid;grid-template-columns:12mm 1fr;gap:3mm;align-items:start;margin-bottom:3mm}
+  .key i{font-style:normal;font-family:var(--cond);font-weight:800;font-size:16pt;width:12mm;height:12mm;border-radius:2.5mm;display:grid;place-items:center;color:#fff;background:var(--ink)}
+  .key b{display:block;font-family:var(--cond);text-transform:uppercase;font-size:12pt}
+  .key span{color:var(--mut);font-size:9.5pt}
+  .tA{background:var(--teal)!important} .tB{background:var(--blue)!important} .tC{background:var(--acc)!important} .tD{background:var(--ink)!important} .tE{background:#B7BDC6!important}
+  table{width:100%;border-collapse:collapse;font-size:9.5pt}
+  th,td{text-align:left;padding:2.2mm 2.5mm;border-bottom:1px solid var(--line);vertical-align:top}
+  th{font-family:var(--cond);text-transform:uppercase;letter-spacing:.5px;font-size:10pt;color:var(--mut);background:var(--soft)}
+  .zone{display:inline-block;font-family:var(--cond);font-weight:800;padding:.4mm 2mm;border-radius:1.5mm;color:#fff;font-size:10pt}
+  .note{border-left:1mm solid var(--teal);background:var(--soft);padding:3mm 4mm;font-size:9pt;color:var(--mut);margin-top:4mm}
+
+  /* Divisor de fase */
+  .phase-head{margin:-18mm -16mm 6mm;padding:14mm 16mm 7mm;background:var(--bg);color:var(--txt-d);position:relative;overflow:hidden}
+  .phase-head:before{content:"";position:absolute;inset:0;background:radial-gradient(90mm 50mm at 90% 0,rgba(255,90,31,.3),transparent 70%)}
+  .phase-head>*{position:relative}
+  .phase-head .num{font-family:var(--cond);font-weight:800;font-size:11pt;letter-spacing:2px;color:var(--teal);text-transform:uppercase}
+  .phase-head h2{font-size:34pt;margin:1mm 0 2mm}
+  .phase-head p{color:var(--mut-d);margin:0;max-width:150mm}
+  .phase-head .bar{height:1.6mm;border-radius:1mm;margin-top:4mm}
+  .page.has-phase .run-head{display:none}
+  .page.has-phase .body{padding-top:0}
+
+  /* Semana */
+  .week{border:1px solid var(--line);border-radius:3mm;overflow:hidden;margin-bottom:5mm;break-inside:avoid}
+  .week-top{display:flex;align-items:center;gap:4mm;padding:3mm 4mm;background:var(--soft);border-bottom:1px solid var(--line)}
+  .week-top .n{font-family:var(--cond);font-weight:800;font-style:italic;font-size:24pt;line-height:1;color:var(--acc);min-width:20mm}
+  .week-top .n small{font-size:10pt;color:var(--mut);font-style:normal;display:block;letter-spacing:1px}
+  .week-top .obj{flex:1}
+  .week-top .obj b{font-family:var(--cond);text-transform:uppercase;font-size:13pt;display:block;line-height:1.1}
+  .week-top .obj span{color:var(--mut);font-size:9pt}
+  .week-top .chk{display:flex;gap:1.5mm}
+  .week-top .chk i{width:5mm;height:5mm;border:1.2px solid var(--mut);border-radius:1mm}
+  .sess{display:grid;grid-template-columns:9mm 30mm 1fr;gap:3mm;padding:2.3mm 4mm;border-bottom:1px solid var(--line);align-items:start}
+  .sess:last-child{border-bottom:0}
+  .sess i{font-style:normal;font-family:var(--cond);font-weight:800;font-size:12pt;width:7mm;height:7mm;border-radius:1.5mm;display:grid;place-items:center;color:#fff}
+  .sess .t{font-family:var(--cond);font-weight:800;text-transform:uppercase;font-size:11pt;line-height:1.2;padding-top:.8mm}
+  .sess .t small{display:block;font-weight:600;color:var(--mut);font-size:8.5pt;letter-spacing:.3px}
+  .sess .d{font-size:9.5pt;padding-top:.6mm}
+  .sess.test{background:#FFF3EC}
+  .sess.test .t{color:var(--acc)}
+  .tip{padding:2.5mm 4mm;font-size:9pt;color:var(--mut);background:#FAFBFC;border-top:1px dashed var(--line)}
+  .tip b{color:var(--ink)}
+
+  /* Registro */
+  .log td{height:10mm}
+  .log td:first-child{font-weight:600}
+
+  /* Contraportada */
+  .back{display:flex;flex-direction:column;justify-content:center;padding:24mm 20mm}
+  .back:before{content:"";position:absolute;inset:0;background:radial-gradient(120mm 90mm at 15% 85%,rgba(255,90,31,.3),transparent 70%)}
+  .back>*{position:relative}
+  .back h1{font-size:60pt;margin:4mm 0 8mm}
+  .back .cta{display:inline-block;background:var(--acc);color:#fff;font-family:var(--cond);font-weight:800;text-transform:uppercase;letter-spacing:1px;font-size:15pt;padding:3mm 7mm;clip-path:polygon(2.5mm 0,100% 0,calc(100% - 2.5mm) 100%,0 100%)}
+  .compact th,.compact td{padding:1.2mm 2.5mm}
+  .compact h2{margin-bottom:2mm}
+  .compact .note{margin-top:3mm}
+  .compact .box{padding:3.5mm 4mm}
+  .compact .box h3{margin-bottom:1.5mm}
+  .compact ul.dash li{margin-bottom:1mm}
+  .lines div{border-bottom:1px solid var(--line);height:8mm}
+  .checks{columns:2;column-gap:8mm;list-style:none}
+  .checks li{break-inside:avoid;margin-bottom:2mm;padding-left:7mm;position:relative}
+  .checks li:before{content:"";position:absolute;left:0;top:.6mm;width:4mm;height:4mm;border:1.2px solid var(--mut);border-radius:1mm}
+  .back .legal{position:absolute;bottom:14mm;left:20mm;right:20mm;font-size:7.5pt;color:var(--mut-d);line-height:1.5;border-top:1px solid var(--line-d);padding-top:4mm}
+</style>
+</head>
+<body>
+
+<!-- 1 · PORTADA -->
+<section class="page dark cover">
+  <div class="logo">Ritmo<b>/</b>Híbrido</div>
+  <div>
+    <p class="eyebrow">Plan de entrenamiento · Carreras de fitness híbrido</p>
+    <h1>16 semanas<br><span class="o">hasta</span><br><span class="a">la meta.</span></h1>
+    <p class="lead">El plan completo, sesión a sesión, para preparar tu carrera HYROX: 8 km de carrera y 8 estaciones, a tu ritmo.</p>
+    <div class="phase-strip">
+      <div class="f1"><b>Sem 1–4</b>Base aeróbica</div>
+      <div class="f2"><b>Sem 5–8</b>Fuerza + estaciones</div>
+      <div class="f3"><b>Sem 9–13</b>Ritmo de carrera</div>
+      <div class="f4"><b>Sem 14–16</b>Puesta a punto</div>
+    </div>
+  </div>
+  <div class="cover-foot">
+    <div>Mi carrera: <span class="fill"></span><br><br>Fecha: <span class="fill" style="min-width:40mm"></span> &nbsp; Categoría: <span class="fill" style="min-width:30mm"></span></div>
+    <div style="text-align:right">ritmohibrido.com<br>Edición 2026/27</div>
+  </div>
+</section>
+
+<!-- 2 · CÓMO USAR EL PLAN -->
+<section class="page">
+  <div class="run-head"><span class="logo">Ritmo<b>/</b>Híbrido</span><span>Cómo usar el plan</span></div>
+  <div class="body">
+    <h2>Cómo usar <span>el plan</span></h2>
+    <p class="lead">Cuatro sesiones fijas a la semana y una opcional. Está pensado para personas que ya hacen algo de deporte y quieren completar su primera carrera, o bajar su marca, sin vivir en el gimnasio.</p>
+
+    <div class="grid2" style="margin-top:6mm">
+      <div>
+        <h3>Las 5 sesiones de cada semana</h3>
+        <div class="key"><i class="tA">A</i><div><b>Carrera</b><span>Rodajes suaves y series. Construye el motor.</span></div></div>
+        <div class="key"><i class="tB">B</i><div><b>Fuerza</b><span>Básicos con carga. Te prepara para trineos, zancadas y wall balls.</span></div></div>
+        <div class="key"><i class="tC">C</i><div><b>Híbrido</b><span>Carrera + estaciones. La sesión más específica: no te la saltes.</span></div></div>
+        <div class="key"><i class="tD">D</i><div><b>Fondo</b><span>La carrera larga y suave del fin de semana.</span></div></div>
+        <div class="key"><i class="tE">E</i><div><b>Opcional</b><span>Remo o SkiErg suave y movilidad. Solo si te recuperas bien.</span></div></div>
+      </div>
+      <div>
+        <h3>Una semana tipo</h3>
+        <table>
+          <tr><th>Día</th><th>Sesión</th></tr>
+          <tr><td>Lunes</td><td><span class="zone tA">A</span> Carrera</td></tr>
+          <tr><td>Martes</td><td><span class="zone tB">B</span> Fuerza</td></tr>
+          <tr><td>Miércoles</td><td>Descanso o <span class="zone tE">E</span></td></tr>
+          <tr><td>Jueves</td><td><span class="zone tC">C</span> Híbrido</td></tr>
+          <tr><td>Viernes</td><td>Descanso</td></tr>
+          <tr><td>Sábado</td><td><span class="zone tD">D</span> Fondo</td></tr>
+          <tr><td>Domingo</td><td>Descanso</td></tr>
+        </table>
+        <p style="font-size:9pt;color:var(--mut);margin-top:2mm">Mueve los días a tu agenda, pero deja al menos 48 h entre la sesión C y la B.</p>
+      </div>
+    </div>
+
+    <h3 style="margin-top:8mm">Reglas de oro</h3>
+    <ul class="dash">
+      <li><b>Empieza cada sesión con el calentamiento estándar</b> (página siguiente). Son 10 minutos que te ahorran lesiones.</li>
+      <li><b>La constancia gana a la intensidad.</b> Mejor 4 sesiones correctas que 2 heroicas.</li>
+      <li><b>Las semanas 4, 8 y 12 son de test.</b> Anota los resultados en el registro del final: así ajustas tu ritmo de carrera.</li>
+      <li><b>Si pierdes una semana, no la recuperes doblando.</b> Repite la semana anterior y sigue.</li>
+      <li><b>Dolor articular o agudo = para.</b> El cansancio muscular es normal; el dolor que cambia tu forma de moverte, no.</li>
+    </ul>
+
+    <div class="note">Si solo puedes entrenar <b>3 días</b>: haz A, C y D, y añade al final de la sesión A dos ejercicios de fuerza de la sesión B. Si puedes <b>5 días</b>: añade la sesión E.</div>
+  </div>
+  <div class="run-foot"><span>Plan 16 semanas · Ritmo Híbrido</span><span class="pg">02</span></div>
+</section>
+
+<!-- 3 · RITMOS, CALENTAMIENTO Y ADAPTACIONES -->
+<section class="page compact">
+  <div class="run-head"><span class="logo">Ritmo<b>/</b>Híbrido</span><span>Ritmos y esfuerzo</span></div>
+  <div class="body">
+    <h2>Ritmos y <span>esfuerzo</span></h2>
+    <p class="lead">Sin pulsómetro: escala de esfuerzo percibido (RPE) del 1 al 10 y tres ritmos de referencia.</p>
+    <table style="margin-top:5mm">
+      <tr><th style="width:26mm">Código</th><th style="width:22mm">RPE</th><th>Cómo se siente</th><th style="width:50mm">Para qué</th></tr>
+      <tr><td><span class="zone tA">Z2</span></td><td>3–4 / 10</td><td>Puedes hablar con frases completas. Terminas con ganas de más.</td><td>Rodajes, fondos, ergómetros suaves</td></tr>
+      <tr><td><span class="zone tB">Z3</span></td><td>5–6 / 10</td><td>Cómodo pero exigente. Hablas con frases cortas.</td><td>Carrera entre estaciones en fase 2</td></tr>
+      <tr><td><span class="zone tC">RC</span></td><td>7 / 10</td><td>Tu <b>ritmo de carrera</b>: el que sostendrías 8 km con estaciones entre medias.</td><td>Fase 3 y simulacros</td></tr>
+      <tr><td><span class="zone tD">SERIES</span></td><td>8 / 10</td><td>Duro. Solo dices palabras sueltas. Controlado hasta la última repetición.</td><td>400–800 m en fase 2</td></tr>
+      <tr><td><span class="zone" style="background:#C0392B">TOPE</span></td><td>9–10 / 10</td><td>Todo lo que tienes. Solo en los tests.</td><td>Tests de las semanas 4, 8 y 12</td></tr>
+    </table>
+    <div class="note"><b>Cómo calcular tu RC:</b> toma tu tiempo del test de 1 km (semana 4) y súmale un 20–30 %. Ejemplo: 1 km en 4:30 → RC entre 5:25 y 5:50 min/km. Ajústalo tras el medio simulacro (semana 8) y el simulacro completo (semana 12).</div>
+
+    <div class="grid2" style="margin-top:6mm">
+      <div class="box">
+        <h3>Calentamiento estándar · 10’</h3>
+        <ul class="dash">
+          <li>5’ de trote suave, remo o SkiErg</li>
+          <li>Movilidad: 10 sentadillas al aire, 10 balanceos de pierna por lado, 10 círculos de cadera, 10 rotaciones torácicas</li>
+          <li>2 × 10 m de zancadas caminando</li>
+          <li>3 progresiones de 20” acelerando hasta RC</li>
+        </ul>
+      </div>
+      <div class="box">
+        <h3>Vuelta a la calma · 5’</h3>
+        <ul class="dash">
+          <li>3–5’ andando o trote muy suave</li>
+          <li>Estiramientos suaves de gemelo, cuádriceps, isquios y cadera</li>
+          <li>Hidrátate y anota cómo te has sentido (RPE)</li>
+        </ul>
+      </div>
+    </div>
+
+    <h3 style="margin-top:5mm">Sin material de competición</h3>
+    <table>
+      <tr><th style="width:42mm">Estación</th><th>Alternativa</th></tr>
+      <tr><td>SkiErg</td><td>Remo, o tirones con banda elástica de pie (2” de trabajo · 1” de pausa)</td></tr>
+      <tr><td>Sled push</td><td>Empujar un disco grande sobre toalla o césped artificial; sprints en cuesta empujando contra una pared (10”)</td></tr>
+      <tr><td>Sled pull</td><td>Remo con cuerda atada a un disco o una kettlebell; remo invertido en anillas</td></tr>
+      <tr><td>Remo</td><td>Bici de aire o SkiErg con la misma duración</td></tr>
+      <tr><td>Farmers carry</td><td>Caminata con mancuernas, kettlebells o garrafas de agua</td></tr>
+      <tr><td>Sandbag lunges</td><td>Zancadas con mochila cargada, o con mancuerna en el pecho</td></tr>
+      <tr><td>Wall balls</td><td>Thrusters con mancuerna o sentadilla + lanzamiento de balón medicinal hacia arriba</td></tr>
+    </table>
+  </div>
+  <div class="run-foot"><span>Plan 16 semanas · Ritmo Híbrido</span><span class="pg">03</span></div>
+</section>
+
+<!-- Las páginas de semanas se generan con los datos de abajo -->
+<div id="weeks"></div>
+
+<!-- ESTRATEGIA DE CARRERA -->
+<section class="page" id="estrategia">
+  <div class="run-head"><span class="logo">Ritmo<b>/</b>Híbrido</span><span>Día de carrera</span></div>
+  <div class="body">
+    <h2>Estrategia <span>de carrera</span></h2>
+    <p class="lead">El objetivo es llegar a la estación 8 con algo dentro. La mayoría de los errores se cometen en los primeros 15 minutos.</p>
+    <table style="margin-top:5mm">
+      <tr><th style="width:8mm">#</th><th style="width:40mm">Estación</th><th>Cómo afrontarla</th></tr>
+      <tr><td>0</td><td><b>1.er km</b></td><td>De 5 a 10 segundos más lento que tu RC. Deja que te adelanten: los recuperarás.</td></tr>
+      <tr><td>1</td><td><b>SkiErg</b></td><td>Ritmo constante, tira con el cuerpo y no solo con los brazos. No lo conviertas en un sprint.</td></tr>
+      <tr><td>2</td><td><b>Sled push</b></td><td>Brazos casi estirados, cuerpo inclinado y pasos cortos y continuos. Parar y arrancar cuesta el doble.</td></tr>
+      <tr><td>3</td><td><b>Sled pull</b></td><td>Pies firmes, tira con piernas y espalda, mano sobre mano. Retrocede andando para recoger cuerda.</td></tr>
+      <tr><td>4</td><td><b>Burpee broad jumps</b></td><td>Busca un ritmo que puedas repetir sin pausas. Saltos medios, no máximos.</td></tr>
+      <tr><td>5</td><td><b>Remo</b></td><td>Empuja con las piernas y respira. Es el momento de bajar pulsaciones sin perder ritmo.</td></tr>
+      <tr><td>6</td><td><b>Farmers carry</b></td><td>Pasos rápidos y cortos, hombros atrás. Si tienes que soltar, hazlo antes de que fallen las manos.</td></tr>
+      <tr><td>7</td><td><b>Sandbag lunges</b></td><td>Ritmo regular, rodilla de atrás que toque el suelo con suavidad. Respira cada zancada.</td></tr>
+      <tr><td>8</td><td><b>Wall balls</b></td><td>Planifica las series antes de empezar (por ejemplo, 15-15-10-10-10…) con descansos de 3 respiraciones.</td></tr>
+    </table>
+
+    <div class="grid2" style="margin-top:7mm">
+      <div class="box">
+        <h3>Antes de la salida</h3>
+        <ul class="dash">
+          <li>Última comida principal 3 h antes: algo que ya hayas probado en un entrenamiento.</li>
+          <li>Bebe agua de forma regular durante la mañana, sin pasarte.</li>
+          <li>Llega con tiempo: recoge dorsal, revisa tu tanda y localiza la zona de calentamiento.</li>
+          <li>Calentamiento estándar 20–30’ antes de tu salida.</li>
+        </ul>
+      </div>
+      <div class="box">
+        <h3>Durante y después</h3>
+        <ul class="dash">
+          <li>Cuenta las vueltas: es el error más común. Usa los dedos o el reloj.</li>
+          <li>Sal de cada estación andando rápido y empieza a trotar a los pocos metros.</li>
+          <li>Si has entrenado con gel o bebida, úsalo a mitad de carrera; si no, no lo pruebes ese día.</li>
+          <li>Al terminar: come, hidrátate y anota tus parciales en el registro.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  <div class="run-foot"><span>Plan 16 semanas · Ritmo Híbrido</span><span class="pg" data-pg></span></div>
+</section>
+
+<!-- REGISTRO -->
+<section class="page">
+  <div class="run-head"><span class="logo">Ritmo<b>/</b>Híbrido</span><span>Registro de progreso</span></div>
+  <div class="body">
+    <h2>Registro de <span>progreso</span></h2>
+    <p class="lead">Apunta cada test. Ver cómo bajan los tiempos es la mejor motivación.</p>
+    <table class="log" style="margin-top:5mm">
+      <tr><th style="width:52mm">Test</th><th>Semana 4</th><th>Semana 8</th><th>Semana 12</th><th>Carrera</th></tr>
+      <tr><td>1 km a tope</td><td></td><td></td><td></td><td>—</td></tr>
+      <tr><td>1.000 m remo</td><td></td><td>—</td><td></td><td></td></tr>
+      <tr><td>1.000 m SkiErg</td><td></td><td>—</td><td></td><td></td></tr>
+      <tr><td>Medio simulacro (4 + 4)</td><td>—</td><td></td><td>—</td><td>—</td></tr>
+      <tr><td>Simulacro completo</td><td>—</td><td>—</td><td></td><td></td></tr>
+      <tr><td>Mi ritmo de carrera (RC)</td><td></td><td></td><td></td><td></td></tr>
+    </table>
+
+    <h3 style="margin-top:8mm">Parciales del simulacro y de la carrera</h3>
+    <table class="log">
+      <tr><th style="width:52mm">Tramo</th><th>Simulacro (sem. 12)</th><th>Carrera</th><th>Diferencia</th></tr>
+      <tr><td>Km 1 + SkiErg</td><td></td><td></td><td></td></tr>
+      <tr><td>Km 2 + Sled push</td><td></td><td></td><td></td></tr>
+      <tr><td>Km 3 + Sled pull</td><td></td><td></td><td></td></tr>
+      <tr><td>Km 4 + Burpee broad jumps</td><td></td><td></td><td></td></tr>
+      <tr><td>Km 5 + Remo</td><td></td><td></td><td></td></tr>
+      <tr><td>Km 6 + Farmers carry</td><td></td><td></td><td></td></tr>
+      <tr><td>Km 7 + Sandbag lunges</td><td></td><td></td><td></td></tr>
+      <tr><td>Km 8 + Wall balls</td><td></td><td></td><td></td></tr>
+      <tr><td><b>Tiempo total</b></td><td></td><td></td><td></td></tr>
+    </table>
+  </div>
+  <div class="run-foot"><span>Plan 16 semanas · Ritmo Híbrido</span><span class="pg" data-pg></span></div>
+</section>
+
+<!-- CONTRAPORTADA -->
+<section class="page dark back">
+  <div class="logo" style="font-size:20pt">Ritmo<b>/</b>Híbrido</div>
+  <h1>Nos vemos<br>en la <span class="a">meta.</span></h1>
+  <p class="lead" style="color:var(--mut-d);max-width:140mm;margin-bottom:10mm">Entrenar acompañado es más fácil. Busca un centro con clases de carrera híbrida en tu ciudad, apúntate a un simulacro abierto y comparte el camino.</p>
+  <div><span class="cta">ritmohibrido.com/gimnasios</span></div>
+  <p style="margin-top:12mm;color:var(--mut-d);font-size:10pt">¿Estás en Sevilla? Entrena con nuestro centro colaborador <b style="color:var(--txt-d)">Good Training</b> (Dos Hermanas y Utrera).</p>
+  <p class="legal">Este plan es orientativo y de carácter general; no sustituye el consejo de un profesional sanitario ni de un entrenador cualificado. Si tienes una lesión, una condición médica o llevas tiempo sin hacer ejercicio, consulta antes de empezar. Ritmo Híbrido es una guía independiente sin relación con HYROX World GmbH ni con sus eventos oficiales. HYROX es una marca registrada de su titular y se menciona solo para identificar la competición. Confirma distancias, pesos y estándares en el reglamento oficial de tu carrera. © 2026 Ritmo Híbrido.</p>
+</section>
+
+<script>
+// ---------- Contenido del plan ----------
+const PHASES = [
+  { n: 1, name: 'Base aeróbica', weeks: '1–4', color: 'var(--teal)',
+    desc: 'Construir el motor y aprender la técnica de las estaciones sin fatiga. Mucho Z2, fuerza general y cero heroicidades.' },
+  { n: 2, name: 'Fuerza + estaciones', weeks: '5–8', color: 'var(--blue)',
+    desc: 'Más carga en los básicos, primeras series y trineo cada semana. Empiezas a combinar carrera y estación.' },
+  { n: 3, name: 'Ritmo de carrera', weeks: '9–13', color: 'var(--acc)',
+    desc: 'Aprender tu ritmo de carrera (RC) y sostenerlo con las piernas cansadas. Incluye el simulacro completo.' },
+  { n: 4, name: 'Puesta a punto', weeks: '14–16', color: 'var(--ink)',
+    desc: 'Bajar volumen y mantener intensidad para llegar fresco. Lo que hayas entrenado antes es lo que cuenta.' },
+];
+
+// tipo: A Carrera · B Fuerza · C Híbrido · D Fondo · E Opcional · X día de la semana de carrera
+const WEEKS = [
+  { w: 1, phase: 1, obj: 'Crear el hábito', sub: 'Aprende los movimientos, sin prisa.', s: [
+    ['A','Carrera','35’ total','Calentamiento + 25’ Z2 + 4 × 20” progresivos (recupera andando).'],
+    ['B','Fuerza','40’','3 rondas: 10 sentadilla goblet · 10 peso muerto rumano · 10 remo con mancuerna por brazo · 8 flexiones · 30” plancha. RPE 6.'],
+    ['C','Híbrido','40’','Técnica de estaciones, 3 rondas sin prisa: 250 m remo · 250 m SkiErg · 10 wall balls · 10 zancadas · 5 burpee broad jumps. Descanso 2’.'],
+    ['D','Fondo','40’','40’ continuos en Z2. Si necesitas andar, anda: lo importante es el tiempo en movimiento.'],
+    ['E','Opcional','30’','20’ de remo o SkiErg en Z2 + 10’ de movilidad.'],
+  ], tip: '<b>Consejo:</b> en los wall balls, baja con el balón pegado al pecho y usa la subida de la sentadilla para lanzar.' },
+  { w: 2, phase: 1, obj: 'Subir volumen', sub: 'Un poco más que la semana pasada, nada más.', s: [
+    ['A','Carrera','40’','Calentamiento + 30’ Z2 + 6 × 20” progresivos.'],
+    ['B','Fuerza','45’','Igual que la semana 1 con algo más de carga, y añade 3 × 10 puente de glúteo.'],
+    ['C','Híbrido','45’','4 rondas: 250 m remo · 250 m SkiErg · 12 wall balls · 12 zancadas con saco ligero · 6 burpee broad jumps. Descanso 90”.'],
+    ['D','Fondo','45’','45’ en Z2.'],
+    ['E','Opcional','35’','25’ de remo o SkiErg en Z2 + movilidad.'],
+  ], tip: '<b>Consejo:</b> en el SkiErg, la fuerza sale de la cadera: flexiona ligeramente rodillas y lleva el peso del cuerpo hacia abajo.' },
+  { w: 3, phase: 1, obj: 'Semana fuerte de la fase', sub: 'El mayor volumen del primer bloque.', s: [
+    ['A','Carrera','45’','Calentamiento + 35’ Z2 + 6 × 20” progresivos.'],
+    ['B','Fuerza','50’','4 × 8: sentadilla goblet · peso muerto rumano · press militar con mancuernas · remo con mancuerna. Final: 4 × 40 m farmers carry.'],
+    ['C','Híbrido','50’','4 rondas: 500 m remo · 15 wall balls · 20 m zancadas con saco · 8 burpee broad jumps. Descanso 90”.'],
+    ['D','Fondo','50’','50’ en Z2.'],
+    ['E','Opcional','40’','30’ de remo o SkiErg en Z2 + movilidad.'],
+  ], tip: '<b>Consejo:</b> en el farmers carry, aprieta las asas y camina con pasos cortos y rápidos, sin balancear el cuerpo.' },
+  { w: 4, phase: 1, obj: 'Descarga y primeros tests', sub: 'Menos volumen para asimilar. Mide tu punto de partida.', test: true, s: [
+    ['A','Test 1','40’','Calentamiento completo + <b>1 km a tope</b>. Anota el tiempo y calcula tu RC (página 3). Después, 15’ Z2 suave.', 1],
+    ['B','Fuerza','30’','2 × 10 de todos los ejercicios de la semana 3, con carga ligera.'],
+    ['C','Test 2','40’','Calentamiento + <b>1.000 m remo a tope</b>. Descansa 10’ y haz <b>1.000 m SkiErg a tope</b>. Anota ambos.', 1],
+    ['D','Fondo','35’','35’ en Z2.'],
+    ['E','Opcional','—','Descanso o movilidad.'],
+  ], tip: '<b>Registro:</b> pasa los tres tiempos a la tabla de progreso del final.' },
+
+  { w: 5, phase: 2, obj: 'Trineo y series', sub: 'Primer contacto con el trineo y con el ritmo duro.', s: [
+    ['A','Carrera','45’','Calentamiento + 6 × 400 m en SERIES (RPE 8). Recupera 90” andando o trotando.'],
+    ['B','Fuerza','55’','Sentadilla trasera 4 × 6 · press banca 4 × 6 · peso muerto rumano 3 × 8 · dominadas o jalón 3 × 8 · farmers carry 4 × 50 m pesado.'],
+    ['C','Híbrido','50’','4 × (800 m Z3 + 15 m sled push + 15 m sled pull). Descanso 2’.'],
+    ['D','Fondo','50’','50’ en Z2.'],
+    ['E','Opcional','40’','30’ de remo o SkiErg en Z2 + movilidad.'],
+  ], tip: '<b>Consejo:</b> en el sled push, brazos casi estirados y cuerpo a 45°. Pasos cortos y continuos: no te pares.' },
+  { w: 6, phase: 2, obj: 'Fuerza útil', sub: 'Las piernas que necesitarás en las zancadas.', s: [
+    ['A','Carrera','45’','Calentamiento + 5 × 600 m en SERIES. Recupera 90”.'],
+    ['B','Fuerza','55’','Sentadilla trasera 4 × 5 · press banca 4 × 5 · peso muerto rumano 3 × 8 · zancada búlgara 3 × 8 por pierna · remo con barra 3 × 8.'],
+    ['C','Híbrido','50’','3 × (1 km Z3 + 500 m SkiErg + 20 wall balls). Descanso 2’.'],
+    ['D','Fondo','55’','55’ en Z2.'],
+    ['E','Opcional','40’','30’ de remo o SkiErg en Z2 + movilidad.'],
+  ], tip: '<b>Consejo:</b> en el sled pull, planta los pies, tira con piernas y espalda, y recoge cuerda mano sobre mano.' },
+  { w: 7, phase: 2, obj: 'Semana fuerte de la fase', sub: 'La más exigente hasta ahora. Duerme bien.', s: [
+    ['A','Carrera','50’','Calentamiento + 4 × 800 m en SERIES. Recupera 2’.'],
+    ['B','Fuerza','60’','Sentadilla trasera 5 × 5 · press banca 4 × 5 · peso muerto 3 × 6 · sled push pesado 5 × 15 m.'],
+    ['C','Híbrido','60’','4 × (1 km Z3 + 2 estaciones a media distancia). R1: 500 m SkiErg + 25 m sled push · R2: 25 m sled pull + 40 m burpee broad jumps · R3: 500 m remo + 100 m farmers · R4: 50 m zancadas + 50 wall balls. Descanso 2’.'],
+    ['D','Fondo','60’','60’ en Z2.'],
+    ['E','Opcional','40’','30’ de remo o SkiErg en Z2 + movilidad.'],
+  ], tip: '<b>Consejo:</b> en los burpee broad jumps, busca un ritmo que puedas repetir sin pausas. Saltos medios, no máximos.' },
+  { w: 8, phase: 2, obj: 'Descarga y medio simulacro', sub: 'Asimila el bloque y mide cómo encadenas.', test: true, s: [
+    ['A','Carrera','35’','Calentamiento + 20’ Z2 + 4 × 20” progresivos.'],
+    ['B','Fuerza','35’','3 × 5 de los básicos al 60–70 % de la carga de la semana 7.'],
+    ['C','Test 3','50’','<b>Medio simulacro</b>: 4 × (1 km a RC + estación) con las 4 primeras a media distancia: 500 m SkiErg · 25 m sled push · 25 m sled pull · 40 m burpee broad jumps. Sin descanso. Anota el tiempo total y repite el test de 1 km otro día de la semana si te ves bien.', 1],
+    ['D','Fondo','45’','45’ en Z2.'],
+    ['E','Opcional','—','Descanso.'],
+  ], tip: '<b>Ajusta tu RC:</b> si el medio simulacro te ha resultado fácil, baja tu RC 5”/km. Si te has hundido, súbelo 5–10”/km.' },
+
+  { w: 9, phase: 3, obj: 'Aprender tu ritmo', sub: 'Que tu RC salga sin mirar el reloj.', s: [
+    ['A','Carrera','50’','Calentamiento + 5 × 1 km a RC. Recupera 2’.'],
+    ['B','Fuerza','50’','Sentadilla trasera 4 × 5 · peso muerto 4 × 5 · press militar 3 × 8 · 3 × 15 wall balls con un balón más pesado.'],
+    ['C','Híbrido','55’','4 × (1 km a RC + 1 estación completa): 1.000 m SkiErg · 1.000 m remo · 200 m farmers · 50 wall balls. Descanso 2’.'],
+    ['D','Fondo','60’','60’ en Z2 con los últimos 10’ a RC.'],
+    ['E','Opcional','40’','30’ de remo o SkiErg en Z2 + movilidad.'],
+  ], tip: '<b>Consejo:</b> en el remo, primero piernas, después espalda, después brazos. Y en la vuelta, al revés.' },
+  { w: 10, phase: 3, obj: 'Correr cansado', sub: 'Practica las transiciones: entrar y salir corriendo.', s: [
+    ['A','Carrera','50’','Calentamiento + 6 × 1 km a RC. Recupera 90”.'],
+    ['B','Fuerza','50’','Sentadilla trasera 4 × 4 · peso muerto 3 × 4 · zancada búlgara 3 × 8 · remo con barra 3 × 8.'],
+    ['C','Híbrido','55’','8 × (500 m a RC + 1 estación corta) sin descanso: 250 m SkiErg · 15 m sled push · 15 m sled pull · 20 m burpee broad jumps · 250 m remo · 50 m farmers · 20 m zancadas · 20 wall balls.'],
+    ['D','Fondo','65’','65’ en Z2 con 2 × 10’ a RC (5’ suaves entre medias).'],
+    ['E','Opcional','40’','30’ de remo o SkiErg en Z2 + movilidad.'],
+  ], tip: '<b>Consejo:</b> al salir de cada estación, anda rápido 5–10 pasos y empieza a trotar. Las transiciones también son carrera.' },
+  { w: 11, phase: 3, obj: 'Volumen específico', sub: 'La semana más larga del plan.', s: [
+    ['A','Carrera','55’','Calentamiento + 3 × 2 km a RC. Recupera 2’.'],
+    ['B','Fuerza','45’','Sentadilla trasera 3 × 4 · peso muerto 3 × 4 · press banca 3 × 5 · 3 × 20 wall balls.'],
+    ['C','Híbrido','65’','6 × (1 km a RC + estación al 75 %): 750 m SkiErg · 40 m sled push · 40 m sled pull · 60 m burpee broad jumps · 750 m remo · 150 m farmers. Descanso 1’.'],
+    ['D','Fondo','70’','70’ en Z2.'],
+    ['E','Opcional','40’','30’ de remo o SkiErg en Z2 + movilidad.'],
+  ], tip: '<b>Consejo:</b> en las zancadas con saco, la rodilla de atrás toca el suelo con suavidad. Respira en cada paso.' },
+  { w: 12, phase: 3, obj: 'Simulacro completo', sub: 'Tu ensayo general. Vívelo como el día de carrera.', test: true, s: [
+    ['A','Carrera','35’','Al principio de la semana: calentamiento + 20’ Z2 + 4 × 20”.'],
+    ['B','Fuerza','30’','3 × 3 de los básicos, ligero. Al menos 48 h antes del simulacro.'],
+    ['C','Test 4','90’','<b>Simulacro</b>: 8 × 1 km + 8 estaciones completas, en orden, con el peso de tu categoría (o al 75–90 % si no tienes el material). Anota los parciales de cada tramo en el registro.', 1],
+    ['D','Fondo','45’','45’ en Z2, al menos 48 h después del simulacro.'],
+    ['E','Opcional','—','Descanso.'],
+  ], tip: '<b>Ensaya todo:</b> desayuno, ropa, zapatillas, calentamiento y estrategia de wall balls. El día de carrera, nada nuevo.' },
+  { w: 13, phase: 3, obj: 'Pulir debilidades', sub: 'Trabaja las estaciones que más te costaron.', s: [
+    ['A','Carrera','50’','Calentamiento + 6 × 1 km a RC. Recupera 75”.'],
+    ['B','Fuerza','40’','3 × 4 de los básicos, manteniendo la carga.'],
+    ['C','Híbrido','55’','4 × (1 km a RC + tus 2 estaciones más lentas del simulacro, a media distancia). Descanso 90”.'],
+    ['D','Fondo','60’','60’ en Z2 con 20’ a RC en mitad del rodaje.'],
+    ['E','Opcional','40’','30’ de remo o SkiErg en Z2 + movilidad.'],
+  ], tip: '<b>Consejo:</b> compara tus parciales del simulacro: la estación donde más tiempo pierdes respecto a tu media es la que más margen tiene.' },
+
+  { w: 14, phase: 4, obj: 'Menos volumen, misma chispa', sub: 'Alrededor de un 30 % menos de volumen.', s: [
+    ['A','Carrera','40’','Calentamiento + 4 × 1 km a RC. Recupera 2’.'],
+    ['B','Fuerza','35’','3 × 3 de los básicos al 70–75 %.'],
+    ['C','Híbrido','45’','4 × (1 km a RC + estación al 50 %). Descanso 90”.'],
+    ['D','Fondo','45’','45’ en Z2.'],
+    ['E','Opcional','30’','20’ de remo o SkiErg muy suave.'],
+  ], tip: '<b>Consejo:</b> notarás energía de sobra. Es normal: no la gastes metiendo sesiones extra.' },
+  { w: 15, phase: 4, obj: 'Afinar', sub: 'Alrededor de un 50 % menos de volumen.', s: [
+    ['A','Carrera','35’','Calentamiento + 3 × 1 km a RC. Recupera 2’.'],
+    ['B','Fuerza','25’','2 × 3 ligero + movilidad.'],
+    ['C','Híbrido','35’','3 × (500 m a RC + estación corta): 250 m SkiErg · 20 wall balls · 15 m sled push.'],
+    ['D','Fondo','35’','35’ en Z2.'],
+    ['E','Opcional','—','Descanso.'],
+  ], tip: '<b>Logística:</b> revisa tu tanda y hora de salida, el transporte y el alojamiento. Prepara la bolsa con tiempo.' },
+  { w: 16, phase: 4, obj: 'Semana de carrera', sub: 'Descansa, activa y disfruta.', race: true, s: [
+    ['−6','6 días antes','30’','30’ Z2 + 4 × 20” progresivos.'],
+    ['−5','5 días antes','15’','Movilidad suave.'],
+    ['−4','4 días antes','25’','Activación: 3 × (500 m a RC + 10 wall balls).'],
+    ['−3','3 días antes','—','Descanso.'],
+    ['−2','2 días antes','20’','15’ muy suaves + 3 rectas cortas.'],
+    ['−1','La víspera','—','Descanso. Recoge el dorsal, cena algo conocido y duerme.'],
+    ['★','Día de carrera','','Calentamiento estándar, estrategia de la página siguiente y… ¡a disfrutar!', 1],
+  ], tip: '<b>Recuerda:</b> el primer kilómetro, más lento que tu RC. Cuenta las vueltas.' },
+];
+
+const EXTRA = {
+  13: `<div class="box"><h3>Lo que me enseñó el simulacro</h3>
+    <p style="font-size:9.5pt;color:var(--mut)">Respóndelo después de la semana 12. Te servirá para la semana 13 y para el día de carrera.</p>
+    <p><b>Mis 2 estaciones más lentas:</b></p><div class="lines"><div></div></div>
+    <p style="margin-top:3mm"><b>En qué kilómetro me hundí y por qué:</b></p><div class="lines"><div></div><div></div></div>
+    <p style="margin-top:3mm"><b>Mi plan de series para los wall balls:</b></p><div class="lines"><div></div></div>
+    <p style="margin-top:3mm"><b>Mi RC definitivo:</b> ______ min/km</p></div>`,
+  16: `<div class="box"><h3>La bolsa del día de carrera</h3>
+    <ul class="checks">
+      <li>Confirmación de inscripción y DNI</li><li>Zapatillas probadas en el simulacro</li>
+      <li>Ropa de competición y de recambio</li><li>Guantes, si los usas para el trineo</li>
+      <li>Botella de agua</li><li>Gel o bebida que ya hayas probado</li>
+      <li>Comida para después</li><li>Toalla y chanclas</li>
+      <li>Reloj cargado</li><li>Este plan, con tus parciales del simulacro</li>
+    </ul></div>`,
+};
+
+// ---------- Maquetación: 2 semanas por página ----------
+const typeClass = { A: 'tA', B: 'tB', C: 'tC', D: 'tD', E: 'tE' };
+const weekHTML = w => `
+  <div class="week">
+    <div class="week-top">
+      <div class="n"><small>SEMANA</small>${String(w.w).padStart(2, '0')}</div>
+      <div class="obj"><b>${w.obj}</b><span>${w.sub}</span></div>
+      <div class="chk">${w.s.filter(s => s[2] !== '—' && !(s[0] === 'E' && s[3].startsWith('Descanso'))).map(() => '<i></i>').join('')}</div>
+    </div>
+    ${w.s.map(([k, t, dur, d, test]) => `
+      <div class="sess${test ? ' test' : ''}">
+        <i class="${typeClass[k] || (k === 'D' ? 'tD' : '')}" style="${typeClass[k] ? '' : 'background:var(--acc);font-size:9pt'}">${k}</i>
+        <div class="t">${t}<small>${dur}</small></div>
+        <div class="d">${d}</div>
+      </div>`).join('')}
+    <div class="tip">${w.tip}</div>
+  </div>`;
+
+const pages = [];
+PHASES.forEach(ph => {
+  const ws = WEEKS.filter(w => w.phase === ph.n);
+  for (let i = 0; i < ws.length; i += 2) pages.push({ phase: i === 0 ? ph : null, weeks: ws.slice(i, i + 2), ph });
+});
+
+let pg = 4;
+document.getElementById('weeks').outerHTML = pages.map(p => `
+  <section class="page${p.phase ? ' has-phase' : ''}">
+    <div class="run-head"><span class="logo">Ritmo<b>/</b>Híbrido</span><span>Fase ${p.ph.n} · ${p.ph.name}</span></div>
+    <div class="body">
+      ${p.phase ? `<div class="phase-head">
+        <div class="num">Fase ${p.ph.n} de 4 · Semanas ${p.ph.weeks}</div>
+        <h2>${p.ph.name}</h2>
+        <p>${p.ph.desc}</p>
+        <div class="bar" style="background:${p.ph.color === 'var(--ink)' ? 'var(--acc)' : p.ph.color}"></div>
+      </div>` : ''}
+      ${p.weeks.map(w => weekHTML(w) + (p.weeks.length === 1 && EXTRA[w.w] ? EXTRA[w.w] : '')).join('')}
+    </div>
+    <div class="run-foot"><span>Plan 16 semanas · Ritmo Híbrido</span><span class="pg">${String(pg++).padStart(2, '0')}</span></div>
+  </section>`).join('');
+document.querySelectorAll('[data-pg]').forEach(el => el.textContent = String(pg++).padStart(2, '0'));
+
+// Vista previa de una sola página: plan-16-semanas.html#p=4
+const only = location.hash.match(/p=(\d+)/);
+if (only) document.querySelectorAll('.page').forEach((p, i) => { if (i + 1 !== +only[1]) p.remove(); else p.style.margin = 0; });
+</script>
+</body>
+</html>

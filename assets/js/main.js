@@ -87,7 +87,9 @@ document.querySelectorAll('form[data-signup]').forEach(form => {
   form.addEventListener('submit', e => {
     if (form.getAttribute('action')) return;
     e.preventDefault();
-    form.innerHTML = '<p class="form-ok">¡Hecho! Revisa tu email.</p>';
+    const pdf = form.dataset.signup;
+    form.innerHTML = '<p class="form-ok">¡Hecho! Revisa tu email.</p>' +
+      (pdf ? `<a class="btn" href="${pdf}" download>Descargar el plan (PDF)</a>` : '');
   });
 });
 
