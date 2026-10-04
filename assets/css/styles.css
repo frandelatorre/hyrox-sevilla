@@ -1,0 +1,187 @@
+/* Ritmo Híbrido — estilos comunes */
+:root{
+  --bg:#0E1013; --panel:#171A1F; --panel2:#1F232A; --line:#2A2F37;
+  --txt:#F2F4F7; --mut:#9AA3AF; --acc:#FF5A1F; --acc2:#2EC4B6; --blue:#7896FF;
+  --cond:"Barlow Condensed",sans-serif;
+  color-scheme:dark;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--txt);font-family:Barlow,system-ui,sans-serif;line-height:1.6;font-size:16px}
+a{color:inherit;text-decoration:none}
+img{max-width:100%;display:block}
+.wrap{max-width:1180px;margin:0 auto;padding:0 20px}
+.cond{font-family:var(--cond);text-transform:uppercase}
+.acc{color:var(--acc)}
+
+/* Cabecera */
+.site-header{position:sticky;top:0;z-index:20;background:rgba(14,16,19,.92);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+.site-header .wrap{display:flex;align-items:center;justify-content:space-between;height:64px;gap:16px}
+.logo{font-family:var(--cond);font-weight:800;font-style:italic;font-size:26px;letter-spacing:.5px;text-transform:uppercase;white-space:nowrap}
+.logo b{color:var(--acc)}
+.nav{display:flex;gap:28px;font-size:14px;font-weight:600;text-transform:uppercase;letter-spacing:1px;color:var(--mut)}
+.nav a:hover,.nav a[aria-current="page"]{color:var(--txt)}
+.nav a[aria-current="page"]{box-shadow:inset 0 -2px 0 var(--acc)}
+.menu-btn{display:none;background:none;border:1px solid var(--line);color:var(--txt);width:42px;height:42px;font-size:20px;cursor:pointer}
+
+/* Botones */
+.btn{display:inline-flex;align-items:center;gap:8px;background:var(--acc);color:#fff;font-family:var(--cond);font-weight:800;text-transform:uppercase;letter-spacing:1px;font-size:18px;padding:12px 24px;clip-path:polygon(10px 0,100% 0,calc(100% - 10px) 100%,0 100%);border:0;cursor:pointer;transition:filter .15s}
+.btn:hover{filter:brightness(1.1)}
+.btn.sec{background:var(--panel2);color:var(--txt)}
+.btn-row{display:flex;gap:10px;flex-wrap:wrap}
+
+/* Hero */
+.hero{position:relative;padding:72px 0 56px;overflow:hidden}
+.hero:before{content:"";position:absolute;inset:0;pointer-events:none;background:
+  radial-gradient(600px 300px at 85% 20%,rgba(255,90,31,.25),transparent 70%),
+  repeating-linear-gradient(-60deg,transparent 0 38px,rgba(255,255,255,.025) 38px 40px)}
+.hero .wrap{position:relative;display:grid;grid-template-columns:1.2fr 1fr;gap:40px;align-items:center}
+.eyebrow{color:var(--acc2);font-weight:600;letter-spacing:3px;text-transform:uppercase;font-size:13px;margin-bottom:12px}
+h1{font-family:var(--cond);font-weight:800;font-style:italic;text-transform:uppercase;font-size:clamp(52px,8.5vw,108px);line-height:.88;letter-spacing:-1px}
+h1 .o{color:transparent;-webkit-text-stroke:2px var(--txt)}
+h1 .a{color:var(--acc)}
+.lead{color:var(--mut);font-size:18px;max-width:48ch;margin:22px 0 30px}
+
+/* Cabecera de página interior */
+.page-hero{position:relative;padding:56px 0 40px;border-bottom:1px solid var(--line);overflow:hidden}
+.page-hero:before{content:"";position:absolute;inset:0;pointer-events:none;background:radial-gradient(500px 220px at 90% 0,rgba(255,90,31,.18),transparent 70%)}
+.page-hero .wrap{position:relative}
+.page-hero h1{font-size:clamp(44px,7vw,84px)}
+.page-hero .lead{margin-bottom:0}
+
+/* Tarjeta del plan */
+.plan-card{background:var(--panel);border:1px solid var(--line);border-radius:20px;padding:22px;box-shadow:0 30px 60px -30px rgba(255,90,31,.35)}
+.plan-top{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:12px}
+.plan-top b{font-family:var(--cond);font-weight:800;font-size:22px;text-transform:uppercase;letter-spacing:.5px}
+.plan-top small{color:var(--mut);font-size:13px;white-space:nowrap}
+.race-select{width:100%;margin-bottom:14px;background:var(--bg);color:var(--txt);border:1px solid var(--line);border-radius:10px;padding:10px 12px;font:inherit;font-weight:600;cursor:pointer}
+.bar{height:8px;background:var(--line);border-radius:99px;overflow:hidden;margin-bottom:16px}
+.bar div{height:100%;width:4%;background:linear-gradient(90deg,var(--acc2),var(--acc));border-radius:99px;transition:width .4s}
+.weeks{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.wk{border-radius:14px;padding:12px 10px;font-size:13px;line-height:1.3;color:var(--mut);border:2px solid transparent}
+.wk b{display:block;font-family:var(--cond);font-weight:800;font-size:18px;color:var(--txt);white-space:nowrap;margin-bottom:4px}
+.wk.p1{background:rgba(46,196,182,.14)} .wk.p2{background:rgba(120,150,255,.14)}
+.wk.p3{background:rgba(255,90,31,.16)} .wk.p4{background:var(--acc);color:#fff} .wk.p4 b{color:#fff}
+.wk.now{border-color:var(--txt)}
+.today{margin:14px 0 18px;display:flex;gap:12px;align-items:center;background:var(--bg);border:1px solid var(--line);border-radius:14px;padding:12px}
+.today i{flex:none;width:44px;height:44px;border-radius:12px;background:var(--acc);display:grid;place-items:center;color:#fff;font-style:normal;font-family:var(--cond);font-weight:800;font-size:18px}
+.today b{font-size:16px;display:block} .today small{display:block;color:var(--mut);font-size:13px}
+.plan-card .lbl{font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--mut);margin-bottom:8px}
+.digits{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.digits div{background:var(--bg);border:1px solid var(--line);border-radius:10px;text-align:center;padding:8px 0}
+.digits b{display:block;font-family:var(--cond);font-weight:800;font-size:30px;line-height:1;color:var(--acc)}
+.digits small{font-size:10px;letter-spacing:2px;color:var(--mut);text-transform:uppercase}
+
+/* Franja de estaciones */
+.stations{display:grid;grid-template-columns:repeat(8,1fr);border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.st{padding:18px 12px;border-right:1px solid var(--line);font-size:13px;color:var(--mut)}
+.st:last-child{border-right:0}
+.st b{display:block;font-family:var(--cond);font-size:28px;color:var(--txt);font-weight:800}
+
+/* Secciones */
+section{padding:72px 0}
+section.alt{background:var(--panel)}
+h2{font-family:var(--cond);font-weight:800;font-style:italic;text-transform:uppercase;font-size:clamp(36px,5vw,56px);line-height:.95}
+h2 span{color:var(--acc)}
+h3{font-family:var(--cond);font-weight:800;text-transform:uppercase;font-size:28px;line-height:1.05}
+.head{display:flex;justify-content:space-between;align-items:end;gap:20px;margin-bottom:32px;flex-wrap:wrap}
+.head p{color:var(--mut);max-width:44ch}
+.link{font-weight:600;color:var(--acc2)}
+.link:hover{text-decoration:underline}
+
+/* Tarjetas genéricas */
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.card{background:var(--panel);border:1px solid var(--line);padding:24px;display:flex;flex-direction:column;gap:8px;transition:border-color .2s}
+section.alt .card{background:var(--panel2)}
+a.card:hover{border-color:var(--acc)}
+.card p{color:var(--mut);font-size:15px}
+.card .num{font-family:var(--cond);font-weight:800;font-size:44px;line-height:1;color:var(--acc)}
+.badge{align-self:flex-start;background:var(--acc);color:#fff;font-family:var(--cond);font-weight:800;text-transform:uppercase;letter-spacing:1px;padding:2px 10px;font-size:14px}
+.badge.ghost{background:transparent;color:var(--mut);border:1px solid var(--line)}
+
+/* Carreras */
+.races{display:grid;grid-template-columns:repeat(5,1fr);gap:12px}
+.race{background:var(--panel);border-top:3px solid var(--line);padding:20px;display:flex;flex-direction:column;gap:2px}
+section.alt .race{background:var(--panel2)}
+.race.next{border-top-color:var(--acc)}
+.race .d{font-family:var(--cond);font-weight:800;font-size:22px;color:var(--mut)}
+.race.next .d{color:var(--acc)}
+.race .c{font-family:var(--cond);font-weight:800;font-size:34px;text-transform:uppercase;line-height:1}
+.race small{color:var(--mut);font-size:13px}
+.past{opacity:.45}
+
+/* Tabla */
+.table-wrap{overflow-x:auto;border:1px solid var(--line)}
+table{width:100%;border-collapse:collapse;font-size:15px;min-width:640px}
+th,td{padding:14px 16px;text-align:left;border-bottom:1px solid var(--line)}
+th{font-family:var(--cond);text-transform:uppercase;letter-spacing:1px;font-size:15px;color:var(--mut);background:var(--panel)}
+tr:last-child td{border-bottom:0}
+td b{font-family:var(--cond);font-size:20px;text-transform:uppercase}
+
+/* Directorio */
+.filters{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px}
+.f{padding:8px 16px;border:1px solid var(--line);background:var(--panel);color:var(--mut);font-family:var(--cond);font-weight:800;text-transform:uppercase;letter-spacing:1px;font-size:15px;cursor:pointer}
+.f.on{background:var(--txt);color:var(--bg);border-color:var(--txt)}
+.gym{background:var(--panel);border:1px solid var(--line);padding:24px;display:flex;flex-direction:column;justify-content:space-between;gap:12px;min-height:170px}
+.gym.colab{background:linear-gradient(160deg,#2a1308,var(--panel) 60%);border-color:var(--acc)}
+.gym h3{font-size:26px}
+.gym p{color:var(--mut);font-size:14px}
+.gym .go{font-weight:600;font-size:14px;color:var(--acc2)}
+.city-title{font-family:var(--cond);font-weight:800;text-transform:uppercase;font-size:22px;letter-spacing:1px;color:var(--mut);margin:40px 0 14px;display:flex;align-items:center;gap:12px}
+.city-title:after{content:"";flex:1;height:1px;background:var(--line)}
+
+/* Prosa */
+.prose{max-width:760px}
+.prose h2{margin:48px 0 16px}
+.prose h3{margin:32px 0 10px}
+.prose p,.prose li{color:#C9CFD8;font-size:17px;margin-bottom:14px}
+.prose ul{padding-left:22px}
+.note{background:var(--panel);border-left:3px solid var(--acc2);padding:14px 18px;color:var(--mut);font-size:14px;margin:20px 0}
+
+/* Fases del plan */
+.phase{background:var(--panel);border:1px solid var(--line);padding:28px;display:grid;grid-template-columns:200px 1fr;gap:28px}
+.phase + .phase{border-top:0}
+.phase .tag{font-family:var(--cond);font-weight:800;text-transform:uppercase}
+.phase .tag b{display:block;font-size:44px;line-height:1}
+.phase .tag span{color:var(--mut);font-size:15px;letter-spacing:1px}
+.phase.p1 .tag b{color:var(--acc2)} .phase.p2 .tag b{color:var(--blue)} .phase.p3 .tag b{color:var(--acc)} .phase.p4 .tag b{color:var(--txt)}
+.phase ul{list-style:none;display:grid;gap:8px}
+.phase li{color:#C9CFD8;padding-left:22px;position:relative}
+.phase li:before{content:"";position:absolute;left:0;top:10px;width:10px;height:3px;background:var(--acc)}
+
+/* CTA */
+.cta{background:var(--acc);color:#fff;padding:56px;display:grid;grid-template-columns:1.2fr 1fr;gap:32px;align-items:center;clip-path:polygon(0 0,100% 0,100% calc(100% - 30px),calc(100% - 30px) 100%,0 100%)}
+.cta h2 span{color:var(--bg)}
+.cta p{opacity:.92;margin-top:10px}
+.cta form{display:flex;flex-direction:column;gap:8px}
+.cta .row{display:flex}
+.cta input,.cta select{flex:1;min-width:0;padding:16px;border:0;font:inherit;background:#fff;color:#111}
+.cta .btn{background:var(--bg);clip-path:none}
+.cta .fine{font-size:12px;opacity:.85}
+.form-ok{font-family:var(--cond);font-weight:800;font-size:26px;text-transform:uppercase}
+
+/* Pie */
+.site-footer{border-top:1px solid var(--line);padding:48px 0 32px;color:var(--mut);font-size:14px}
+.site-footer .cols{display:grid;grid-template-columns:2fr 1fr 1fr;gap:32px;margin-bottom:32px}
+.site-footer h4{font-family:var(--cond);text-transform:uppercase;letter-spacing:1px;color:var(--txt);font-size:16px;margin-bottom:10px}
+.site-footer ul{list-style:none;display:grid;gap:6px}
+.site-footer a:hover{color:var(--txt)}
+.site-footer .legal{border-top:1px solid var(--line);padding-top:20px;font-size:12px;line-height:1.6}
+
+@media (max-width:900px){
+  .menu-btn{display:block}
+  .nav{display:none;position:absolute;top:64px;left:0;right:0;flex-direction:column;gap:0;background:var(--bg);border-bottom:1px solid var(--line)}
+  .nav.open{display:flex}
+  .nav a{padding:16px 20px;border-top:1px solid var(--line)}
+  .nav a[aria-current="page"]{box-shadow:inset 3px 0 0 var(--acc)}
+  .site-header .btn{display:none}
+  .hero .wrap,.cta{grid-template-columns:1fr}
+  .weeks{grid-template-columns:repeat(2,1fr)}
+  .stations{grid-template-columns:repeat(4,1fr)}
+  .st:nth-child(4){border-right:0} .st:nth-child(-n+4){border-bottom:1px solid var(--line)}
+  .grid3,.grid4,.races{grid-template-columns:1fr}
+  .phase{grid-template-columns:1fr;gap:12px}
+  .cta{padding:28px}
+  .site-footer .cols{grid-template-columns:1fr}
+}

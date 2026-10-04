@@ -1,0 +1,5 @@
+User-agent: *
+Disallow: /propuestas/
+Disallow: /legal/
+
+Sitemap: https://ritmohibrido.com/sitemap.xml
