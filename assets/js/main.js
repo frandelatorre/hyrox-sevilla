@@ -112,7 +112,7 @@ document.querySelectorAll('form[data-signup]').forEach(form => {
     try {
       const out = await rhApi({
         action: 'signup', email: f.email, ciudad: f.ciudad, carrera: f.carrera || '',
-        web: f.web || '', ms: Date.now() - t0, origen: location.pathname.replace(/\/$/, '') || '/',
+        web: f.ritmo_extra || '', ms: Date.now() - t0, origen: location.pathname.replace(/\/$/, '') || '/',
       });
       if (out === null) { // demostración: sin backend
         form.innerHTML = '<p class="form-ok">¡Hecho! (modo demostración)</p>' +
