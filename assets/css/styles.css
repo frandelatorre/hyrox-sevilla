@@ -126,10 +126,47 @@ td b{font-family:var(--cond);font-size:20px;text-transform:uppercase}
 .f{padding:8px 16px;border:1px solid var(--line);background:var(--panel);color:var(--mut);font-family:var(--cond);font-weight:800;text-transform:uppercase;letter-spacing:1px;font-size:15px;cursor:pointer}
 .f.on{background:var(--txt);color:var(--bg);border-color:var(--txt)}
 .gym{background:var(--panel);border:1px solid var(--line);padding:24px;display:flex;flex-direction:column;justify-content:space-between;gap:12px;min-height:170px}
-.gym.colab{background:linear-gradient(160deg,#2a1308,var(--panel) 60%);border-color:var(--acc)}
 .gym h3{font-size:26px}
 .gym p{color:var(--mut);font-size:14px}
 .gym .go{font-weight:600;font-size:14px;color:var(--acc2)}
+.gym-foot{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap}
+.gym .own{font-size:12px;color:var(--mut);text-decoration:underline;text-underline-offset:3px}
+.gym .own:hover{color:var(--txt)}
+
+/* Ficha destacada: siempre arriba en su ciudad. Una sola (o la última impar) ocupa la fila entera, con la foto a un lado; si hay varias, van de dos en dos con la foto arriba */
+.gyms-feat{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-bottom:12px}
+.gym-feat{background:linear-gradient(160deg,#2a1308,var(--panel) 60%);border:1px solid var(--acc);display:flex;flex-direction:column;min-width:0}
+.gf-media{position:relative;aspect-ratio:16/9;overflow:hidden;background:linear-gradient(135deg,#0E1013 0%,#3a1a0b 55%,var(--acc) 140%);display:grid;place-items:center}
+.gf-media:before{content:"";position:absolute;inset:0;background:repeating-linear-gradient(-60deg,transparent 0 38px,rgba(255,255,255,.03) 38px 40px)}
+.gf-ini{position:relative;font-family:var(--cond);font-weight:800;font-style:italic;text-transform:uppercase;font-size:clamp(56px,9vw,96px);line-height:1;letter-spacing:2px;color:rgba(255,255,255,.88)}
+.gf-media img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.gf-body{padding:24px;display:flex;flex-direction:column;justify-content:center;gap:10px;flex:1}
+.gf-tags{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.gf-tags small{color:var(--mut);font-size:12px;letter-spacing:.5px}
+.gym-feat h3{font-size:34px}
+.gf-zone{color:var(--acc2);font-weight:600;font-size:14px}
+.gf-desc{color:#C9CFD8;font-size:15px}
+.gf-actions{display:flex;align-items:center;gap:12px 20px;flex-wrap:wrap;margin-top:6px}
+.gym-feat .btn svg{flex:none}
+.gf-web{font-weight:600;font-size:14px;color:var(--acc2)}
+.gf-web:hover{text-decoration:underline}
+.gym-feat:last-child:nth-child(odd){grid-column:1/-1;display:grid;grid-template-columns:5fr 7fr}
+.gym-feat:last-child:nth-child(odd) .gf-body{padding:32px}
+
+/* Comparativa de fichas para centros */
+.tiers{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+.tier{gap:14px}
+.tier h3{font-size:34px}
+.tier ul{list-style:none;display:grid;gap:8px}
+.tier li{color:#C9CFD8;font-size:15px;padding-left:22px;position:relative}
+.tier li:before{content:"";position:absolute;left:0;top:11px;width:10px;height:3px;background:var(--acc)}
+.tier .price{font-family:var(--cond);font-weight:800;text-transform:uppercase;font-size:26px;line-height:1.1;margin-top:auto}
+.tier .price small{display:block;font-family:Barlow,system-ui,sans-serif;font-weight:400;text-transform:none;color:var(--mut);font-size:13px;margin-top:2px}
+section.alt .tier.pro{background:linear-gradient(160deg,#2a1308,var(--panel2) 60%);border-color:var(--acc)}
+.tier-extra{margin-top:12px;display:flex;align-items:baseline;gap:6px 14px;flex-wrap:wrap;color:var(--mut);font-size:15px;border:1px dashed var(--line);padding:14px 20px}
+.tier-extra b{font-family:var(--cond);font-weight:800;text-transform:uppercase;letter-spacing:1px;color:var(--txt);font-size:18px}
+.alta-cta{margin-top:24px;display:flex;align-items:center;gap:12px 20px;flex-wrap:wrap}
+.alta-cta small{color:var(--mut);font-size:13px;max-width:60ch}
 .city-title{font-family:var(--cond);font-weight:800;text-transform:uppercase;font-size:22px;letter-spacing:1px;color:var(--mut);margin:40px 0 14px;display:flex;align-items:center;gap:12px}
 .city-title:after{content:"";flex:1;height:1px;background:var(--line)}
 
@@ -182,7 +219,11 @@ td b{font-family:var(--cond);font-size:20px;text-transform:uppercase}
   .weeks{grid-template-columns:repeat(2,1fr)}
   .stations{grid-template-columns:repeat(4,1fr)}
   .st:nth-child(4){border-right:0} .st:nth-child(-n+4){border-bottom:1px solid var(--line)}
-  .grid3,.grid4,.races{grid-template-columns:1fr}
+  .grid3,.grid4,.races,.gyms-feat,.tiers{grid-template-columns:1fr}
+  .gym-feat:last-child:nth-child(odd){display:flex}
+  .gym-feat:last-child:nth-child(odd) .gf-body,.gf-body{padding:20px}
+  .gym-feat h3{font-size:30px}
+  .gf-actions .btn{width:100%;justify-content:center;font-size:16px;letter-spacing:.5px;padding:12px 14px}
   .phase{grid-template-columns:1fr;gap:12px}
   .cta{padding:28px}
   .site-footer .cols{grid-template-columns:1fr}
