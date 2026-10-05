@@ -28,7 +28,7 @@ Web estática: HTML, CSS y JavaScript sin dependencias ni paso de compilación.
 - **Caché:** al cambiar `assets/css/` o `assets/js/` sube el número `?v=` de las líneas que cargan esos archivos (en todas las páginas), para que los navegadores no sigan usando la versión antigua.
 - **Nueva carrera o cambio de fechas:** actualizar `RACES` en `assets/js/main.js` y las tarjetas de `index.html` y `calendario/index.html`.
 - **Nuevo gimnasio o ciudad:** añadir la ficha en `gimnasios/index.html` (un bloque `data-city` por ciudad y su botón de filtro).
-- **ID de Amazon:** buscar y reemplazar `TAG-PENDIENTE-21` por el ID de afiliado real, solo en `material/index.html` (esta línea del README no hay que tocarla). Los enlaces son búsquedas sin precios, valoraciones ni imágenes de Amazon (las condiciones lo prohíben si no vienen de su API) y no deben ir en emails ni en el PDF del plan.
+- **ID de Amazon:** el ID de afiliado (`delatorre07-21`) va en el parámetro `tag=` de los enlaces de `material/index.html`; para cambiarlo, buscar y reemplazar el ID anterior en ese archivo. Los enlaces son búsquedas sin precios, valoraciones ni imágenes de Amazon (las condiciones lo prohíben si no vienen de su API) y no deben ir en emails ni en el PDF del plan.
 - **Formularios y panel:** hablan con el backend de `backend/` a través de la URL de `assets/js/config.js` (vacía = modo demostración). Instalación en `backend/README.md`.
 
 ## Ver en local
