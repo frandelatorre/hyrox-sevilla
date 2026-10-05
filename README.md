@@ -13,6 +13,7 @@ Web estática: HTML, CSS y JavaScript sin dependencias ni paso de compilación.
 | `calendario/` | Carreras de la temporada en España |
 | `plan/` | Plan de 16 semanas y alta por email |
 | `gimnasios/` | Directorio por ciudad |
+| `material/` | Material recomendado, con enlaces de afiliado de Amazon.es |
 | `aviso-legal/`, `privacidad/`, `cookies/` | Páginas legales (titular, privacidad y cookies) |
 | `confirmar/`, `baja/` | Páginas a las que llegan los enlaces de los emails (confirmar y darse de baja) |
 | `panel-1e97356f51be/` | Panel de estadísticas con contraseña (no indexado) |
@@ -27,6 +28,7 @@ Web estática: HTML, CSS y JavaScript sin dependencias ni paso de compilación.
 - **Caché:** al cambiar `assets/css/` o `assets/js/` sube el número `?v=` de las líneas que cargan esos archivos (en todas las páginas), para que los navegadores no sigan usando la versión antigua.
 - **Nueva carrera o cambio de fechas:** actualizar `RACES` en `assets/js/main.js` y las tarjetas de `index.html` y `calendario/index.html`.
 - **Nuevo gimnasio o ciudad:** añadir la ficha en `gimnasios/index.html` (un bloque `data-city` por ciudad y su botón de filtro).
+- **ID de Amazon:** buscar y reemplazar `TAG-PENDIENTE-21` por el ID de afiliado real, solo en `material/index.html` (esta línea del README no hay que tocarla). Los enlaces son búsquedas sin precios, valoraciones ni imágenes de Amazon (las condiciones lo prohíben si no vienen de su API) y no deben ir en emails ni en el PDF del plan.
 - **Formularios y panel:** hablan con el backend de `backend/` a través de la URL de `assets/js/config.js` (vacía = modo demostración). Instalación en `backend/README.md`.
 
 ## Ver en local

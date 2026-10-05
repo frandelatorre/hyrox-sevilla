@@ -23,6 +23,8 @@ img{max-width:100%;display:block}
 .nav a:hover,.nav a[aria-current="page"]{color:var(--txt)}
 .nav a[aria-current="page"]{box-shadow:inset 0 -2px 0 var(--acc)}
 .menu-btn{display:none;background:none;border:1px solid var(--line);color:var(--txt);width:42px;height:42px;font-size:20px;cursor:pointer}
+.nav a,.site-header .btn{white-space:nowrap}
+@media (max-width:1060px){.nav{gap:18px;letter-spacing:.5px}}
 
 /* Botones */
 .btn{display:inline-flex;align-items:center;gap:8px;background:var(--acc);color:#fff;font-family:var(--cond);font-weight:800;text-transform:uppercase;letter-spacing:1px;font-size:18px;padding:12px 24px;clip-path:polygon(10px 0,100% 0,calc(100% - 10px) 100%,0 100%);border:0;cursor:pointer;transition:filter .15s}
