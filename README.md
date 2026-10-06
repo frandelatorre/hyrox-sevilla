@@ -13,6 +13,7 @@ Web estática: HTML, CSS y JavaScript sin dependencias ni paso de compilación.
 | `calendario/` | Carreras de la temporada en España |
 | `plan/` | Plan de 16 semanas y alta por email |
 | `gimnasios/` | Directorio por ciudad (`gimnasios/<ciudad>/`) |
+| `carreras/` | Una guía por carrera (`carreras/<ciudad>-<año>/`): plan, gimnasios, alojamiento, material y logística |
 | `material/` | Material recomendado, con enlaces de afiliado de Amazon.es |
 | `aviso-legal/`, `privacidad/`, `cookies/` | Páginas legales (titular, privacidad y cookies) |
 | `confirmar/`, `baja/` | Páginas a las que llegan los enlaces de los emails (confirmar y darse de baja) |
@@ -23,6 +24,7 @@ Web estática: HTML, CSS y JavaScript sin dependencias ni paso de compilación.
 | `assets/fonts/` | Tipografías Barlow alojadas aquí (sin Google Fonts) |
 | `assets/img/` | Favicon y `gimnasios/` (fotos WebP de las fichas destacadas) |
 | `assets/js/main.js` | Calendario (`RACES`), cuenta atrás, plan, filtros y formularios |
+| `assets/js/afiliados.js` | `BOOKING_AID` (afiliación de alojamiento) y el script que lo aplica a los enlaces de Booking.com |
 
 ## Mantenimiento
 
@@ -56,6 +58,8 @@ Web estática: HTML, CSS y JavaScript sin dependencias ni paso de compilación.
   - **Foto:** la aporta el centro (no se descargan de sus webs). Horizontal, 16:9, **WebP, 1200 px de ancho (1200×675) y menos de 120 KB**; por ejemplo, con [Squoosh](https://squoosh.app) (redimensionar a 1200 px, WebP, calidad ~75). Se guarda como `assets/img/gimnasios/<slug>.webp` (slug = nombre en minúsculas y con guiones, sin tildes). El `alt` debe describir lo que se ve.
   - **Fecha de fin:** el comentario `<!-- destacado hasta AAAA-MM-DD -->` va dentro de la tarjeta. Para revisar renovaciones, busca todas las fechas con `grep -rn "destacado hasta" gimnasios/` y mira las que ya han pasado o vencen este mes. Si el centro renueva, cambia la fecha; si no, mueve su tarjeta al `.grid3` como ficha gratuita (`.gym`, sin foto ni WhatsApp) o elimínala.
   - Las fichas destacadas son publicidad: mantén siempre la etiqueta «Destacado», la mención «Ficha patrocinada» y `rel="sponsored noopener"` (ver «Contenido patrocinado» en `aviso-legal/`).
+- **Páginas de carrera (`carreras/`):** copia una existente para añadir otra. Datos (fechas, recinto, dirección) siempre de la web oficial del evento y coherentes con `calendario/` y `RACES` de `main.js`; no usar el esquema `Event` (no somos la organización) ni la palabra «hyrox» en la URL. Al terminar la carrera, actualiza o retira la página y quita su tarjeta del calendario. La sección de gimnasios copia la ficha destacada (o el «puesto libre») de `gimnasios/<ciudad>/`: si cambias allí el patrocinador, cámbialo también aquí.
+- **Booking.com:** los botones «Ver alojamientos en…» llevan `data-booking` y enlazan a una búsqueda normal con `rel="nofollow noopener"`. Cuando tengas cuenta de afiliado, pon tu `aid` en `BOOKING_AID` de `assets/js/afiliados.js` (sube el `?v=` de ese script en las páginas de `carreras/`): se añadirá `aid=` a todos los enlaces y el `rel` pasará a `sponsored nofollow noopener`. Sin precios, puntuaciones ni fotos de Booking.
 - **ID de Amazon:** el ID de afiliado (`delatorre07-21`) va en el parámetro `tag=` de los enlaces de `material/index.html`; para cambiarlo, buscar y reemplazar el ID anterior en ese archivo. Los enlaces son búsquedas sin precios, valoraciones ni imágenes de Amazon (las condiciones lo prohíben si no vienen de su API) y no deben ir en emails ni en el PDF del plan.
 - **Formularios y panel:** hablan con el backend de `backend/` a través de la URL de `assets/js/config.js` (vacía = modo demostración). Instalación en `backend/README.md`.
 
