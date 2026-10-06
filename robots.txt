@@ -4,4 +4,4 @@ Disallow: /confirmar/
 Disallow: /baja/
 Disallow: /backend/
 
-Sitemap: https://ritmohibrido.com/sitemap.xml
+Sitemap: https://hyrox-sevilla.com/sitemap.xml

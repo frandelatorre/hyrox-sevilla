@@ -12,7 +12,7 @@ Web estática: HTML, CSS y JavaScript sin dependencias ni paso de compilación.
 | `guia/` | Formato, estaciones, pesos y categorías |
 | `calendario/` | Carreras de la temporada en España |
 | `plan/` | Plan de 16 semanas y alta por email |
-| `gimnasios/` | Directorio por ciudad |
+| `gimnasios/` | Directorio por ciudad (`gimnasios/<ciudad>/`) |
 | `material/` | Material recomendado, con enlaces de afiliado de Amazon.es |
 | `aviso-legal/`, `privacidad/`, `cookies/` | Páginas legales (titular, privacidad y cookies) |
 | `confirmar/`, `baja/` | Páginas a las que llegan los enlaces de los emails (confirmar y darse de baja) |
@@ -28,15 +28,15 @@ Web estática: HTML, CSS y JavaScript sin dependencias ni paso de compilación.
 
 - **Caché:** al cambiar `assets/css/` o `assets/js/` sube el número `?v=` de las líneas que cargan esos archivos (en todas las páginas), para que los navegadores no sigan usando la versión antigua.
 - **Nueva carrera o cambio de fechas:** actualizar `RACES` en `assets/js/main.js` y las tarjetas de `index.html` y `calendario/index.html`.
-- **Nuevo gimnasio o ciudad:** añadir la ficha en `gimnasios/index.html` (un bloque `data-city` por ciudad y su botón de filtro). Las fichas gratuitas (`.gym`) van en el `.grid3` de su ciudad, por orden alfabético y con su enlace «¿Es tu centro?». Los `data-city` solo van en el bloque de la ciudad, nunca en las tarjetas.
-- **Ficha destacada (de pago):** va dentro del bloque `data-city` de su ciudad, en `<div class="gyms-feat">`, **antes** del `.grid3` de las gratuitas. Si hay una sola, ocupa la fila entera (foto a la izquierda); si hay dos o más, van de dos en dos con la foto arriba (la última impar vuelve a ocupar fila entera). Si el centro paga, copia esta plantilla dentro de `.gyms-feat`:
+- **Nuevo gimnasio o ciudad:** cada ciudad tiene su página en `gimnasios/<ciudad>/index.html` (Madrid, Barcelona, Valencia, Málaga y Sevilla; rutas relativas con `../../`). Las fichas gratuitas (`.gym`) van en el `.grid3` de esa página, por orden alfabético y con su enlace «¿Es tu centro?»; añádelas también al JSON-LD `ItemList` del `<head>` y actualiza el nº de centros en la tarjeta de `gimnasios/index.html`, en las tarjetas «Otras ciudades» de las demás páginas de ciudad y en la portada. Una ciudad nueva se copia de otra página de ciudad (cambiando título, descripción, `canonical`, `og:*`, introducción y «Otras ciudades») y se añade a `sitemap.xml`. Antes de añadir un centro, comprueba en su web que sigue abierto y ofrece clases de HYROX o carrera híbrida (la lista del `.md` de la carpeta raíz no es fiable).
+- **Ficha destacada (de pago):** va en `<div class="gyms-feat">` de la página de su ciudad, **antes** del `.grid3` de las gratuitas. Las ciudades sin patrocinador llevan ahí una tarjeta «Este puesto está libre» (con un comentario `puesto libre`): sustitúyela por la ficha del centro. Si hay una sola, ocupa la fila entera (foto a la izquierda); si hay dos o más, van de dos en dos con la foto arriba (la última impar vuelve a ocupar fila entera). Si el centro paga, copia esta plantilla dentro de `.gyms-feat`:
 
   ```html
   <article class="gym-feat">
     <!-- destacado hasta AAAA-MM-DD -->
     <div class="gf-media">
       <span class="gf-ini" aria-hidden="true">XX</span>
-      <img src="../assets/img/gimnasios/SLUG.webp" width="1200" height="675" loading="lazy" decoding="async" alt="Descripción de la foto: qué se ve en ella y de qué centro es">
+      <img src="../../assets/img/gimnasios/SLUG.webp" width="1200" height="675" loading="lazy" decoding="async" alt="Descripción de la foto: qué se ve en ella y de qué centro es">
     </div>
     <div class="gf-body">
       <div class="gf-tags"><span class="badge">Destacado</span><small>Ficha patrocinada</small></div>
