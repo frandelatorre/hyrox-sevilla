@@ -201,6 +201,66 @@ async function run() {
   for (let i = 0; i < 5; i++) post({ action: 'stats', password: 'x' + i });
   check('5 fallos bloquean el panel aunque la contraseña sea buena', post({ action: 'stats', password: G.props.PANEL_PASSWORD }).error === 'locked');
   check('acción desconocida y JSON roto no tumban el servidor', post({ action: 'zzz' }).error === 'accion' && JSON.parse(doPost({ postData: { contents: '{' } }).getContent()).error === 'server');
+
+  // --- Provincias
+  G.reset(); setup();
+  const slugs = Object.keys(PROVINCES);
+  check('la lista tiene 50 provincias + Ceuta + Melilla + "otra" (53), con slugs sin tildes ni espacios',
+    slugs.length === 53 && slugs.every(k => /^[a-z]+(-[a-z]+)*$/.test(k)) && PROVINCES.ceuta === 'Ceuta' && PROVINCES.melilla === 'Melilla' && PROVINCES.otra === 'Fuera de España', slugs.length);
+  check('slugs de ejemplo: a-coruna, alava, bizkaia, illes-balears, las-palmas, santa-cruz-de-tenerife',
+    ['a-coruna', 'alava', 'bizkaia', 'illes-balears', 'las-palmas', 'santa-cruz-de-tenerife'].every(k => PROVINCES[k]));
+  check('los alias apuntan a provincias que existen', Object.values(PROVINCE_ALIASES).every(k => PROVINCES[k]) && PROVINCE_ALIASES.bilbao === 'bizkaia');
+
+  clearThrottle();
+  r = post(form({ email: 'zar@example.com', ciudad: 'zaragoza' }));
+  check('alta con provincia nueva (zaragoza): ok, guardada y con el plan enviado', r.ok === true && subs().find(s => s.email === 'zar@example.com').ciudad === 'zaragoza' && lastMail().to === 'zar@example.com', JSON.stringify(r));
+  clearThrottle();
+  r = post(form({ email: 'sct@example.com', ciudad: 'santa-cruz-de-tenerife' }));
+  check('alta con provincia de varias palabras (santa-cruz-de-tenerife)', r.ok === true && subs().find(s => s.email === 'sct@example.com').ciudad === 'santa-cruz-de-tenerife', JSON.stringify(r));
+  clearThrottle();
+  r = post(form({ email: 'bil@example.com', ciudad: 'bilbao' }));
+  check('alta con valor antiguo (bilbao): se acepta y se guarda como bizkaia', r.ok === true && subs().find(s => s.email === 'bil@example.com').ciudad === 'bizkaia', JSON.stringify(r));
+  const legacy = ['sevilla', 'madrid', 'malaga', 'valencia', 'barcelona', 'bilbao', 'otra'];
+  legacy.forEach((v, i) => { clearThrottle(); post(form({ email: 'leg' + i + '@example.com', ciudad: v })); });
+  check('los 7 valores antiguos del formulario siguen aceptándose', legacy.every((v, i) => { const s = subs().find(x => x.email === 'leg' + i + '@example.com'); return s && s.ciudad === (v === 'bilbao' ? 'bizkaia' : v); }));
+  const nSubs = subs().length, nSent = G.sent.length;
+  ['xx', '', 'constructor', '__proto__', 'toString', 'a-coruna-xx'].forEach(v => { clearThrottle(); post(form({ email: 'mal@example.com', ciudad: v })); });
+  check('valor inválido rechazado (desconocido, vacío, nombres internos de objeto): sin fila ni email', post(form({ email: 'mal@example.com', ciudad: 'xx' })).error === 'ciudad' && subs().length === nSubs && G.sent.length === nSent);
+
+  // Campañas por provincia: 2 de Sevilla, 1 de Cádiz, 1 de Huelva, 1 de Madrid, 1 antiguo "bilbao", 1 "bizkaia", 1 de Zaragoza
+  G.reset(); setup();
+  const mk2 = (email, ciudad) => appendObj_(T.SUBS, { id: shortId_(), fecha_alta: new Date(), email, ciudad, carrera: 'malaga', origen: '/', estado: 'Confirmado', marketing: 'SI', fecha_confirmacion: new Date(), token: token_(), emails_confirmacion: 1 });
+  [['s1', 'sevilla'], ['s2', 'sevilla'], ['c1', 'cadiz'], ['h1', 'huelva'], ['m1', 'madrid'], ['b1', 'bilbao'], ['b2', 'bizkaia'], ['z1', 'zaragoza']].forEach(([n, c]) => mk2(n + '@example.com', c));
+  const camp2 = table_(T.CAMP).rows[0];
+  const runCamp = seg => {
+    updateObj_(T.CAMP, camp2._row, { estado: 'Programada', fecha_envio: new Date(Date.now() - 864e5), segmento_ciudad: seg, enviados: 0, errores: 0 });
+    G.sheets['Envíos'].rows.length = 1; G.sent = []; G.quota = 100;
+    runDailyJob();
+    return G.sent.map(m => m.to.split('@')[0]).sort().join(',');
+  };
+  const dest = seg => { updateObj_(T.CAMP, camp2._row, { estado: 'Programada', segmento_ciudad: seg }); return post({ action: 'stats', password: G.props.PANEL_PASSWORD }).stats.emails[0]; };
+
+  check('campaña sin segmento: va a todos (8)', runCamp('') === 'b1,b2,c1,h1,m1,s1,s2,z1');
+  check('campaña con una provincia: solo esa', runCamp('sevilla') === 's1,s2');
+  check('campaña con una provincia, mayúsculas y tildes: "Cádiz"', runCamp('Cádiz') === 'c1');
+  check('campaña con varias provincias separadas por comas', runCamp('sevilla, cadiz, huelva') === 'c1,h1,s1,s2', runCamp('sevilla, cadiz, huelva'));
+  check('varias provincias con espacios, tildes y mayúsculas mezclados', runCamp(' Sevilla ,CÁDIZ;  huelva ') === 'c1,h1,s1,s2');
+  check('el alias bilbao como segmento llega a los guardados como bilbao y como bizkaia', runCamp('bilbao') === 'b1,b2' && runCamp('bizkaia') === 'b1,b2');
+  check('un suscriptor antiguo "bilbao" entra en una lista de varias provincias con bizkaia', runCamp('madrid, bizkaia') === 'b1,b2,m1');
+  const lenBefore = G.sheets['Registro'].rows.length;
+  check('segmento con una errata se ignora solo esa parte y se avisa en el Registro', runCamp('sevilla, cadis') === 's1,s2' && G.sheets['Registro'].rows.length > lenBefore);
+  check('segmento solo con erratas: no se envía a nadie, NO se interpreta como "todos" y la campaña sigue Programada', runCamp('sevila') === '' && table_(T.CAMP).rows[0].estado === 'Programada');
+
+  let e0 = dest('');
+  check('panel: destinatarios sin segmento = 8 y segmento "Todas"', e0.destinatarios === 8 && e0.segmento === 'Todas', JSON.stringify(e0));
+  e0 = dest('sevilla, cadiz, huelva');
+  check('panel: destinatarios de varias provincias = 4, con los nombres bonitos', e0.destinatarios === 4 && e0.segmento === 'Sevilla, Cádiz, Huelva', JSON.stringify(e0));
+  check('panel: destinatarios con "bilbao" = 2 y segmento "Bizkaia"', dest('bilbao').destinatarios === 2 && dest('bilbao').segmento === 'Bizkaia');
+  check('panel: segmento con solo erratas = 0 destinatarios', dest('sevila').destinatarios === 0);
+  const st = post({ action: 'stats', password: G.props.PANEL_PASSWORD }).stats;
+  const bz = st.provincias.find(p => p.provincia === 'Bizkaia');
+  check('panel: "Por provincia" junta bilbao y bizkaia en una sola fila (2) y usa nombres bonitos', st.provincias.length === 6 && bz && bz.registros === 2 && st.provincias.find(p => p.provincia === 'Sevilla').registros === 2, JSON.stringify(st.provincias));
+  check('panel: sigue incluyendo `ciudades` para el panel antiguo', Array.isArray(st.ciudades) && st.ciudades[0].ciudad === st.provincias[0].provincia);
 }
 
 run().then(() => {

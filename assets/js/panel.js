@@ -52,10 +52,11 @@
         { k: 'cierres', label: 'Cierres (altas en el centro)', value: 6, base: 3, baseLabel: 'contactados' },
         { k: 'comision', label: 'Comisión acumulada (€)', value: 180, base: null, euros: true },
       ],
-      ciudades: [
-        { ciudad: 'Sevilla', registros: 118, activos: 84, contactos: 28, cierres: 6 }, { ciudad: 'Madrid', registros: 49, activos: 31, contactos: 0, cierres: 0 },
-        { ciudad: 'Málaga', registros: 33, activos: 22, contactos: 0, cierres: 0 }, { ciudad: 'Valencia', registros: 19, activos: 8, contactos: 0, cierres: 0 },
-        { ciudad: 'Otra ciudad', registros: 12, activos: 3, contactos: 0, cierres: 0 },
+      provincias: [
+        { provincia: 'Sevilla', registros: 96, activos: 70, contactos: 26, cierres: 5 }, { provincia: 'Madrid', registros: 49, activos: 31, contactos: 0, cierres: 0 },
+        { provincia: 'Málaga', registros: 33, activos: 22, contactos: 0, cierres: 0 }, { provincia: 'Cádiz', registros: 14, activos: 9, contactos: 2, cierres: 1 },
+        { provincia: 'Valencia', registros: 19, activos: 8, contactos: 0, cierres: 0 }, { provincia: 'Huelva', registros: 8, activos: 5, contactos: 0, cierres: 0 },
+        { provincia: 'Bizkaia', registros: 7, activos: 4, contactos: 0, cierres: 0 }, { provincia: 'Fuera de España', registros: 5, activos: 1, contactos: 0, cierres: 0 },
       ],
       carreras: [{ carrera: 'malaga', activos: 74 }, { carrera: 'madrid', activos: 38 }, { carrera: 'bilbao', activos: 15 }, { carrera: 'Sin elegir', activos: 21 }],
       origenes: [
@@ -64,7 +65,7 @@
       emails: [
         { id: 'a1', mes: '2026-12', asunto: 'Empieza ya el plan para Málaga', estado: 'Borrador', publi: true, segmento: 'Todas', fecha: next(2), destinatarios: 121, enviados: 0, errores: 0, pendientes: 121 },
         { id: 'a2', mes: '2026-11', asunto: 'Calendario HYROX y consejos de noviembre', estado: 'Programada', publi: false, segmento: 'Todas', fecha: next(1), destinatarios: 121, enviados: 0, errores: 0, pendientes: 121 },
-        { id: 'a3', mes: '2026-10', asunto: 'Bienvenida: así será Ritmo Híbrido', estado: 'Enviada', publi: true, segmento: 'Sevilla', fecha: '05/10/2026', destinatarios: 84, enviados: 84, errores: 0, pendientes: 0 },
+        { id: 'a3', mes: '2026-10', asunto: 'Bienvenida: así será Ritmo Híbrido', estado: 'Enviada', publi: true, segmento: 'Sevilla, Cádiz, Huelva', fecha: '05/10/2026', destinatarios: 84, enviados: 84, errores: 0, pendientes: 0 },
       ],
       calendario: {
         proximas: [
@@ -157,7 +158,8 @@
     comparativas(s) {
       const bars = (rows, label, val) => { const m = Math.max(1, ...rows.map(r => r[val])); return rows.length ? rows.map(r => `<div class="hbar"><span>${esc(r[label])}</span><div class="b"><span style="width:${r[val] / m * 100}%"></span></div><span class="n">${r[val]}</span></div>`).join('') : '<p class="empty">Todavía no hay datos.</p>'; };
       return '<h2>Comparativas</h2><p class="sub">Dónde y por qué página llegan las personas.</p>' +
-        table('Por ciudad', ['Ciudad', 'Formularios', 'Activos', 'Contactos', 'Cierres'], s.ciudades.map(c => [c.ciudad, c.registros, c.activos, c.contactos, c.cierres]), { numeric: [1, 2, 3, 4] }) +
+        // `ciudades`/`ciudad`: nombres del backend anterior a la segmentación por provincia
+        table('Por provincia', ['Provincia', 'Formularios', 'Activos', 'Contactos', 'Cierres'], (s.provincias || s.ciudades).map(c => [c.provincia || c.ciudad, c.registros, c.activos, c.contactos, c.cierres]), { numeric: [1, 2, 3, 4] }) +
         table('Por página de alta', ['Página', 'Altas', 'Siguen suscritos', 'Bajas'], s.origenes.map(o => [o.origen, o.registros, o.activos, o.bajas]), { numeric: [1, 2, 3] }) +
         `<div class="card"><h3>Carrera que preparan (suscriptores activos)</h3>${bars(s.carreras, 'carrera', 'activos')}</div>`;
     },

@@ -33,10 +33,60 @@ const COLS = {
   'Registro': ['fecha', 'origen', 'detalle'],
 };
 
-const CITIES = {
-  sevilla: 'Sevilla', madrid: 'Madrid', malaga: 'Málaga', valencia: 'Valencia',
-  barcelona: 'Barcelona', bilbao: 'Bilbao', otra: 'Otra ciudad',
+// Provincias (slug sin tildes → nombre). La columna de la hoja se sigue llamando `ciudad`, pero guarda el slug de la provincia.
+// Misma lista que PROVINCIAS en assets/js/main.js: si cambias una, cambia la otra.
+const PROVINCES = {
+  'a-coruna': 'A Coruña', 'alava': 'Álava', 'albacete': 'Albacete', 'alicante': 'Alicante', 'almeria': 'Almería',
+  'asturias': 'Asturias', 'avila': 'Ávila', 'badajoz': 'Badajoz', 'illes-balears': 'Illes Balears', 'barcelona': 'Barcelona',
+  'bizkaia': 'Bizkaia', 'burgos': 'Burgos', 'caceres': 'Cáceres', 'cadiz': 'Cádiz', 'cantabria': 'Cantabria',
+  'castellon': 'Castellón', 'ceuta': 'Ceuta', 'ciudad-real': 'Ciudad Real', 'cordoba': 'Córdoba', 'cuenca': 'Cuenca',
+  'gipuzkoa': 'Gipuzkoa', 'girona': 'Girona', 'granada': 'Granada', 'guadalajara': 'Guadalajara', 'huelva': 'Huelva',
+  'huesca': 'Huesca', 'jaen': 'Jaén', 'la-rioja': 'La Rioja', 'las-palmas': 'Las Palmas', 'leon': 'León',
+  'lleida': 'Lleida', 'lugo': 'Lugo', 'madrid': 'Madrid', 'malaga': 'Málaga', 'melilla': 'Melilla',
+  'murcia': 'Murcia', 'navarra': 'Navarra', 'ourense': 'Ourense', 'palencia': 'Palencia', 'pontevedra': 'Pontevedra',
+  'salamanca': 'Salamanca', 'santa-cruz-de-tenerife': 'Santa Cruz de Tenerife', 'segovia': 'Segovia', 'sevilla': 'Sevilla',
+  'soria': 'Soria', 'tarragona': 'Tarragona', 'teruel': 'Teruel', 'toledo': 'Toledo', 'valencia': 'Valencia',
+  'valladolid': 'Valladolid', 'zamora': 'Zamora', 'zaragoza': 'Zaragoza',
+  'otra': 'Fuera de España',
 };
+
+// Otros nombres que se aceptan y se convierten a la provincia de arriba. `bilbao` es el valor antiguo del formulario
+// (suscriptores ya guardados y webs en caché); el resto son formas habituales de escribir el segmento a mano en la hoja.
+const PROVINCE_ALIASES = {
+  'bilbao': 'bizkaia', 'vizcaya': 'bizkaia', 'guipuzcoa': 'gipuzkoa', 'araba': 'alava',
+  'la-coruna': 'a-coruna', 'baleares': 'illes-balears', 'gerona': 'girona', 'lerida': 'lleida', 'orense': 'ourense',
+  'tenerife': 'santa-cruz-de-tenerife',
+};
+
+/** Texto libre (slug, nombre o alias, con o sin tildes) → slug canónico de provincia, o null si no existe. */
+function provinceSlug_(v) {
+  const k = slug_(v).replace(/\s+/g, '-');
+  const slug = Object.prototype.hasOwnProperty.call(PROVINCE_ALIASES, k) ? PROVINCE_ALIASES[k] : k;
+  return Object.prototype.hasOwnProperty.call(PROVINCES, slug) ? slug : null;
+}
+
+function provinceName_(slug) {
+  return Object.prototype.hasOwnProperty.call(PROVINCES, slug) ? PROVINCES[slug] : slug;
+}
+
+/**
+ * Segmento de una campaña: lista de provincias separadas por comas (`sevilla, cadiz, huelva`). Vacío = todos.
+ * Un nombre que no se reconoce se ignora y se devuelve en `unknown`; si no queda ninguna provincia válida,
+ * `empty` es true (nunca se interpreta como "todos").
+ */
+function parseSegment_(raw) {
+  const parts = String(raw === undefined || raw === null ? '' : raw).split(/[,;]/).map(p => p.trim()).filter(Boolean);
+  if (!parts.length) return { all: true, set: {}, unknown: [], empty: false };
+  const set = {}, unknown = [];
+  parts.forEach(p => { const k = provinceSlug_(p); if (k) set[k] = true; else unknown.push(p); });
+  return { all: false, set, unknown, empty: !Object.keys(set).length };
+}
+
+function inSegment_(seg, ciudad) {
+  if (seg.all) return true;
+  const k = provinceSlug_(ciudad);
+  return !!k && seg.set[k] === true;
+}
 
 const CFG_DEFAULTS = [
   ['SENDER_NAME', 'Ritmo Híbrido', 'Nombre que ve quien recibe los emails'],
@@ -91,7 +141,9 @@ function handleSignup_(req) {
   if (req.web) return { ok: true };
   if (Number(req.ms) < 1500) return { ok: true };
 
-  const ciudad = CITIES[req.ciudad] ? req.ciudad : null;
+  // El campo se sigue llamando `ciudad` en la petición (compatibilidad con la web anterior); contiene la provincia.
+  // Acepta los valores antiguos (p. ej. `bilbao`) y guarda siempre el slug actual (`bizkaia`).
+  const ciudad = provinceSlug_(req.ciudad);
   if (!ciudad) return { ok: false, error: 'ciudad' };
   const carrera = /^[a-z0-9-]{1,20}$/.test(String(req.carrera || '')) ? req.carrera : '';
   const origen = String(req.origen || '').slice(0, 40);
@@ -211,9 +263,13 @@ function sendDueCampaign_(t0) {
     (c.estado === 'Programada' || c.estado === 'En curso') && toDate_(c.fecha_envio) && toDate_(c.fecha_envio) <= now);
   if (!camp) return;
 
-  const seg = slug_(camp.segmento_ciudad);
+  // Segmento por provincias. Si hay un segmento escrito pero ninguna provincia se reconoce (una errata), no se envía
+  // a nadie ni se da la campaña por enviada: queda como está y el aviso sale en el panel (Registro).
+  const seg = parseSegment_(camp.segmento_ciudad);
+  if (seg.unknown.length) logError_('segmento ' + camp.id, 'Provincia no reconocida: ' + seg.unknown.join(', '));
+  if (seg.empty) return;
   const recipients = table_(T.SUBS).rows.filter(s =>
-    s.estado === 'Confirmado' && s.marketing === 'SI' && (!seg || s.ciudad === seg));
+    s.estado === 'Confirmado' && s.marketing === 'SI' && inSegment_(seg, s.ciudad));
 
   const sendsSh = sheet_(T.SENDS);
   const prev = table_(T.SENDS).rows.filter(r => r.campana === camp.id);

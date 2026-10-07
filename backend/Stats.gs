@@ -99,13 +99,16 @@ function buildStats_(d, nowDate) {
     rows.forEach(r => { const k = keyFn(r) || '—'; (m[k] = m[k] || []).push(r); });
     return m;
   };
-  const byCity = group(subs, s => s.ciudad), leadsByCity = group(leads, l => l.ciudad);
-  const ciudades = Object.keys(byCity).map(k => ({
-    ciudad: CITIES[k] || k,
-    registros: byCity[k].length,
-    activos: byCity[k].filter(s => s.estado === 'Confirmado').length,
-    contactos: (leadsByCity[k] || []).length,
-    cierres: (leadsByCity[k] || []).filter(l => l.estado === 'Cerrado').length,
+  // Por provincia. Se agrupa por el slug canónico, así `bilbao` (valor antiguo) y `bizkaia` cuentan juntos.
+  const provKey = v => provinceSlug_(v) || String(v === undefined || v === null ? '' : v).trim();
+  const byProv = group(subs, s => provKey(s.ciudad)), leadsByProv = group(leads, l => provKey(l.ciudad));
+  const provincias = Object.keys(byProv).map(k => ({
+    provincia: provinceName_(k),
+    ciudad: provinceName_(k), // copia para el panel antiguo (que lee `ciudad`); se puede quitar cuando todos lo hayan recargado
+    registros: byProv[k].length,
+    activos: byProv[k].filter(s => s.estado === 'Confirmado').length,
+    contactos: (leadsByProv[k] || []).length,
+    cierres: (leadsByProv[k] || []).filter(l => l.estado === 'Cerrado').length,
   })).sort((a, b) => b.registros - a.registros);
 
   const byRace = group(subs.filter(s => s.estado === 'Confirmado'), s => s.carrera);
@@ -120,12 +123,12 @@ function buildStats_(d, nowDate) {
 
   const campSent = id => sendsOk.filter(r => r.campana === id).length;
   const emails = camps.map(c => {
-    const seg = slug_(c.segmento_ciudad);
-    const dest = active.filter(s => s.marketing === 'SI' && (!seg || s.ciudad === seg)).length;
+    const seg = parseSegment_(c.segmento_ciudad);
+    const dest = seg.empty ? 0 : active.filter(s => s.marketing === 'SI' && inSegment_(seg, s.ciudad)).length;
     const sent = c.estado === 'Enviada' || c.estado === 'En curso' ? campSent(c.id) : 0;
     return {
       id: c.id, mes: c.mes, asunto: c.asunto, estado: c.estado, publi: String(c.publi_activa).toUpperCase() === 'SI',
-      segmento: c.segmento_ciudad ? (CITIES[seg] || c.segmento_ciudad) : 'Todas',
+      segmento: seg.all ? 'Todas' : Object.keys(seg.set).map(provinceName_).concat(seg.unknown).join(', '),
       fecha: toDate_(c.fecha_envio) ? Utilities.formatDate(toDate_(c.fecha_envio), TZ, 'dd/MM/yyyy') : '',
       destinatarios: dest, enviados: sent, errores: Number(c.errores) || 0,
       pendientes: c.estado === 'Enviada' ? 0 : Math.max(0, dest - sent),
@@ -155,7 +158,7 @@ function buildStats_(d, nowDate) {
 
   return {
     generado: nowDate.toISOString(),
-    kpis, semanas, embudo, ciudades, carreras, origenes, emails,
+    kpis, semanas, embudo, provincias, ciudades: provincias, carreras, origenes, emails, // `ciudades`: copia para el panel antiguo
     calendario: { proximas: planned, huecos },
     dinero: { meses, total: meses.reduce((t, m) => t + m.total, 0), cierresTotal: closed.length, comisionTotal: sum(closed) },
   };

@@ -31,7 +31,7 @@ Si cambias el código más adelante: *Implementar → Gestionar implementaciones
 | Enviar la campaña del mes | Hoja `Campañas`: edita la fila (asunto, título, cuerpo), pon `estado = Programada` y la `fecha_envio`. El disparador diario la envía. |
 | Probarla antes | Menú *Ritmo Híbrido → Enviar email de prueba a mi cuenta* (usa la primera campaña en Borrador o Programada). |
 | Incluir publicidad | `publi_activa = SI` y rellena título, texto, enlace y botón. Sale con la etiqueta «Publicidad». Anota lo cobrado en `ingreso_publi` para el panel. |
-| Enviar solo a una ciudad | `segmento_ciudad` = `sevilla`, `madrid`… (vacío = todas). |
+| Enviar solo a una o varias provincias | `segmento_ciudad` = `sevilla` o una lista separada por comas, `sevilla, cadiz, huelva` (vacío = todos). Valen el slug (`a-coruna`, `illes-balears`…) o el nombre, con o sin tildes; la lista está en `PROVINCES` de `Code.gs`. Si escribes una provincia que no existe se ignora, y si no queda ninguna la campaña **no se envía** (avisa en el panel). Los suscriptores antiguos de `bilbao` cuentan como `bizkaia`. |
 | Apuntar a quien llega a Good Training por tus emails | Hoja `Contactos` (se rellena a mano con lo que te comunique el centro): añade la fila y cambia `estado` (Nuevo → Contactado → Cerrado). Al poner *Cerrado* se rellenan solos la fecha y la comisión por defecto; edítala si es distinta. |
 
 **Formato del cuerpo:** párrafos separados por una línea en blanco; líneas con `- ` forman una lista; `[texto](https://…)` es un enlace; `**negrita**`. El HTML se escapa, no hace falta (ni funciona) escribir etiquetas.
@@ -47,7 +47,7 @@ Si cambias el código más adelante: *Implementar → Gestionar implementaciones
 
 ## Pruebas
 
-`backend/test/tests.html` ejecuta los tres archivos contra un simulador de las APIs de Google (hojas, correo, caché…) y comprueba el flujo completo: alta, confirmación, baja, campañas con cuota, segmentos, estadísticas y panel. Ábrelo con el servidor local en marcha; debe indicar *50/50 pruebas correctas*. Ejecútalo tras cualquier cambio en el código.
+`backend/test/tests.html` ejecuta los tres archivos contra un simulador de las APIs de Google (hojas, correo, caché…) y comprueba el flujo completo: alta, confirmación, baja, campañas con cuota, segmentos, estadísticas y panel. Ábrelo con el servidor local en marcha; debe indicar *69/69 pruebas correctas* (si añades pruebas, actualiza el número). Ejecútalo tras cualquier cambio en el código.
 
 ## Límites y siguientes pasos
 
