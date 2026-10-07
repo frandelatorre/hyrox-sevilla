@@ -264,3 +264,8 @@ section.alt .tier.pro{background:linear-gradient(160deg,#2a1308,var(--panel2) 60
 [hidden]{display:none!important}
 /* Con el menú de escritorio y poco ancho (901–1060 px) hay seis enlaces: se aprietan para que la cabecera no desborde */
 @media (min-width:901px) and (max-width:1060px){.nav{gap:14px;font-size:13px;letter-spacing:.3px}.site-header .wrap{gap:12px}.site-header .btn{font-size:16px;padding:10px 16px}.logo{font-size:24px}}
+/* Simulacros: selector de provincia y etiqueta de tipo */
+.sim-filter{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:20px}
+.sim-filter label{font-family:var(--cond);font-weight:800;text-transform:uppercase;letter-spacing:1px;color:var(--mut);font-size:15px}
+.sim-filter select{min-width:240px;max-width:100%;background:var(--panel);color:var(--txt);border:1px solid var(--line);padding:10px 12px;font:inherit;font-weight:600;cursor:pointer}
+.ev .badge{margin:2px 0 8px}

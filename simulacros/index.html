@@ -4,10 +4,10 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Simulacros HYROX y pruebas locales en España · Ritmo Híbrido</title>
-<meta name="description" content="Simulacros y pruebas con formato HYROX en España, ordenados por fecha y provincia: lugar, organizador y enlace para apuntarte. Ensaya tu carrera antes del día D.">
+<meta name="description" content="Simulacros y pruebas con formato HYROX, DEKA y otras carreras híbridas en España, ordenados por fecha y provincia: lugar, organizador y enlace para apuntarte.">
 <link rel="canonical" href="https://hyrox-sevilla.com/simulacros/">
 <meta property="og:title" content="Simulacros HYROX y pruebas locales en España · Ritmo Híbrido">
-<meta property="og:description" content="Próximos simulacros y pruebas con formato HYROX en España, por fecha y provincia. Ensaya tu carrera antes del día D.">
+<meta property="og:description" content="Próximos simulacros y carreras híbridas en España (formato HYROX, DEKA y más), por fecha y provincia. Ensaya tu carrera antes del día D.">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://hyrox-sevilla.com/simulacros/">
 <meta property="og:site_name" content="Ritmo Híbrido">
@@ -17,7 +17,7 @@
 <link rel="preload" href="../assets/fonts/barlow-400-normal-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="../assets/fonts/barlow-condensed-800-italic-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="../assets/fonts/fonts.css?v=9">
-<link rel="stylesheet" href="../assets/css/styles.css?v=11">
+<link rel="stylesheet" href="../assets/css/styles.css?v=12">
 </head>
 <body>
 <header class="site-header"><div class="wrap">
@@ -33,7 +33,7 @@
 <div class="page-hero"><div class="wrap">
   <p class="eyebrow">Simulacros · Temporada 26/27</p>
   <h1>Simulacros <span class="a">HYROX</span> y pruebas locales</h1>
-  <p class="lead">Ensaya tu carrera antes del día D: pruebas con formato HYROX organizadas por gimnasios, clubes y entidades de toda España, ordenadas por fecha.</p>
+  <p class="lead">Ensaya tu carrera antes del día D: simulacros con formato HYROX y carreras híbridas como DEKA o Hyatlón, organizados por gimnasios, clubes y entidades de toda España, ordenados por fecha.</p>
 </div></div>
 
 <section><div class="wrap">
@@ -42,23 +42,20 @@
     <p>Un simulacro reproduce el formato de la carrera: ocho veces un kilómetro corriendo seguido de una estación de trabajo, con cronómetro, jueces y el mismo orden. Lo organizan gimnasios, clubes o entidades locales, casi siempre a menor escala y con un precio más ligero que una carrera grande, y no forman parte del calendario de HYROX.</p>
     <p>Sirve para ensayar el ritmo y las transiciones con gente alrededor, para descubrir en qué estación te hundes y para conseguir un tiempo de referencia real, con el que ajustar el objetivo de tu carrera. Además, te acostumbras a los estándares: una repetición que el juez no da por buena se repite.</p>
     <p>El momento ideal es unas cuatro semanas antes de tu carrera, cuando todavía queda tiempo para corregir lo que falle. Nuestro <a class="link" href="../plan/">plan de 16 semanas</a> ya incluye simulacros parciales y uno completo en la semana 12, así que una prueba local encaja justo ahí.</p>
-    <p>Antes de apuntarte, lee el reglamento de cada prueba: pesos, distancias de las estaciones y categorías los fija cada organizador y pueden diferir de los de una carrera de HYROX.</p>
+    <p>En esta lista también hay carreras híbridas de otros formatos (DEKA, Hyatlón, Hunter…): no reproducen HYROX, pero te dan competición real, estaciones y ritmo sostenido. Antes de apuntarte, lee el reglamento de cada prueba: pesos, distancias de las estaciones y categorías los fija cada organizador.</p>
   </div>
 </div></section>
 
 <section class="alt" id="proximos"><div class="wrap">
-  <div class="head"><h2>Próximos <span>eventos</span></h2><p>Temporada 26/27, por fecha. Última revisión: 6 de octubre de 2026.</p></div>
+  <div class="head"><h2>Próximos <span>eventos</span></h2><p>Temporada 26/27, por fecha. Última revisión: 7 de octubre de 2026.</p></div>
 
-  <div class="filters" aria-label="Filtrar por provincia">
-    <button type="button" class="f on" data-city="all">Todas</button>
-    <button type="button" class="f" data-city="badajoz">Badajoz</button>
-    <button type="button" class="f" data-city="jaen">Jaén</button>
-    <button type="button" class="f" data-city="madrid">Madrid</button>
-    <button type="button" class="f" data-city="valladolid">Valladolid</button>
+  <div class="sim-filter">
+    <label for="filtro-provincia">Provincia</label>
+    <select id="filtro-provincia"><option value="all">Todas las provincias</option></select>
   </div>
 
   <!-- DESTACADO: va siempre arriba. Ahora mismo no hay ninguno, por eso se ve la tarjeta «Este puesto está libre».
-       Cuando se venda el puesto: añade aquí dentro, ANTES de la tarjeta libre, un <article class="gym-feat" data-evento data-city="<provincia>" data-fecha="AAAA-MM-DD">
+       Cuando se venda el puesto: añade aquí dentro, ANTES de la tarjeta libre, un <article class="gym-feat" data-evento data-city="<slug de provincia>" data-fecha="AAAA-MM-DD">
        con <div class="gf-media"><span class="gf-ini">XX</span></div>, una <div class="gf-body"> con <span class="badge">Destacado</span><small>Evento patrocinado</small>, título, zona, descripción
        y el botón de inscripción con rel="sponsored noopener" target="_blank". Después la tarjeta libre se oculta sola. Pon justo encima el comentario
        «destacado hasta AAAA-MM-DD» = 60 días desde el alta o la fecha del evento, lo que llegue antes (como en gimnasios/sevilla/). Al pasar esa fecha, borra el artículo. -->
@@ -69,7 +66,7 @@
         <div class="gf-tags"><span class="badge">Disponible</span></div>
         <h3>Este puesto está libre</h3>
         <p class="gf-zone">Primera posición en Simulacros</p>
-        <p class="gf-desc">El evento destacado va arriba de todo, con botón directo de inscripción y mención en la newsletter de su provincia. Si organizas un simulacro o una prueba con formato HYROX, puede ser el tuyo.</p>
+        <p class="gf-desc">El evento destacado va arriba de todo, con botón directo de inscripción y mención en la newsletter de su provincia. Si organizas un simulacro o una carrera híbrida, puede ser el tuyo.</p>
         <div class="gf-actions">
           <a class="btn" href="#organizadores">Quiero este puesto →</a>
         </div>
@@ -77,54 +74,268 @@
     </article>
   </div>
 
-  <!-- PASADOS: no se muestran. Cada tarjeta lleva data-fecha (AAAA-MM-DD) y desaparece sola del listado cuando pasa esa fecha,
-       pero hay que BORRARLA de este archivo cuando caduque (y su botón de filtro si se queda sin eventos). Los eventos pasados no se archivan. -->
+  <!-- PASADOS: no se muestran. Cada tarjeta lleva data-fecha (AAAA-MM-DD, último día del evento) y desaparece sola del listado cuando pasa esa fecha
+       (y su provincia desaparece del selector si se queda sin eventos), pero hay que BORRARLA de este archivo cuando caduque. Los eventos pasados no se archivan.
+       data-city = slug de provincia de assets/js/main.js (PROVINCIAS). -->
   <div class="events">
     <article class="gym ev" data-evento data-city="madrid" data-fecha="2026-10-10">
       <div>
         <p class="ev-date"><time datetime="2026-10-10">Sáb 10 oct 2026</time></p>
         <h3>HRX Arganda</h3>
+        <span class="badge ghost">Formato HYROX</span>
         <p class="ev-org">Club de CrossFit Arganda del Rey, con el Ayuntamiento</p>
         <p class="ev-zone">Arganda del Rey (Madrid) · Estadio municipal</p>
         <p>Prueba basada en el formato HYROX: 8 km de carrera y 8 estaciones, en individual, parejas, sprint de parejas y equipos de cuatro. Desde los 16 años.</p>
       </div>
       <div class="gym-foot"><a class="go" href="https://time2run.es/hrx-arganda/" rel="noopener" target="_blank">Más información →</a></div>
     </article>
+    <article class="gym ev" data-evento data-city="murcia" data-fecha="2026-10-10">
+      <div>
+        <p class="ev-date"><time datetime="2026-10-10">Sáb 10 oct 2026 · 8:30</time></p>
+        <h3>Acron10</h3>
+        <span class="badge ghost">Híbrida</span>
+        <p class="ev-org">Acron10</p>
+        <p class="ev-zone">Murcia (Murcia)</p>
+        <p>Carrera híbrida local que combina tramos de carrera con ejercicios de fuerza y resistencia. Consulta el reglamento para ver el formato exacto.</p>
+      </div>
+      <div class="gym-foot"><a class="go" href="https://crono4sports.com/evento/acron10" rel="noopener" target="_blank">Más información →</a></div>
+    </article>
+    <article class="gym ev" data-evento data-city="barcelona" data-fecha="2026-10-10">
+      <div>
+        <p class="ev-date"><time datetime="2026-10-10">Sáb 10 oct 2026</time></p>
+        <h3>HUNTER · Mataró</h3>
+        <span class="badge ghost">Híbrida</span>
+        <p class="ev-org">HUNTER</p>
+        <p class="ev-zone">Mataró (Barcelona)</p>
+        <p>Carrera híbrida con tres formatos (Legend, Alpha y Sprinter) que alternan carrera y 7 workouts, en individual o por parejas.</p>
+      </div>
+      <div class="gym-foot"><a class="go" href="https://www.hunter-race.com/" rel="noopener" target="_blank">Más información →</a></div>
+    </article>
+    <article class="gym ev" data-evento data-city="malaga" data-fecha="2026-10-10">
+      <div>
+        <p class="ev-date"><time datetime="2026-10-10">Sáb 10 oct 2026</time></p>
+        <h3>Hybrid Day Málaga</h3>
+        <span class="badge ghost">Híbrida</span>
+        <p class="ev-org">Hybrid Day</p>
+        <p class="ev-zone">Torremolinos (Málaga) · Campo municipal de atletismo</p>
+        <p>Jornada de competición de fitness híbrido de la serie Hybrid Day, que también pasa por Vigo en diciembre.</p>
+      </div>
+      <div class="gym-foot"><a class="go" href="https://www.tickettailor.com/events/hybridday" rel="noopener" target="_blank">Más información →</a></div>
+    </article>
     <article class="gym ev" data-evento data-city="jaen" data-fecha="2026-10-24">
       <div>
         <p class="ev-date"><time datetime="2026-10-24">Sáb 24 oct 2026</time></p>
         <h3>Liga Híbrida Andalucía · Jaén</h3>
+        <span class="badge ghost">Formato HYROX</span>
         <p class="ev-org">Liga Híbrida Andalucía</p>
         <p class="ev-zone">Jaén (Jaén) · Estadio Caja Rural Jaén La Victoria</p>
         <p>Cuarta y última parada de la liga andaluza de fitness híbrido: 8 tramos de carrera con 8 estaciones intercaladas, en individual, dobles y equipos.</p>
       </div>
       <div class="gym-foot"><a class="go" href="https://www.ligahibridaandalucia.com/evento/lha-jaen/" rel="noopener" target="_blank">Más información →</a></div>
     </article>
+    <article class="gym ev" data-evento data-city="tarragona" data-fecha="2026-10-24">
+      <div>
+        <p class="ev-date"><time datetime="2026-10-24">Sáb 24 oct 2026 · 9:00</time></p>
+        <h3>Tarraco Hybrid Series</h3>
+        <span class="badge ghost">Híbrida</span>
+        <p class="ev-org">Crono4Sports (gestión y cronometraje)</p>
+        <p class="ev-zone">Tarragona (Tarragona)</p>
+        <p>Carrera híbrida en Tarragona con categorías individuales, parejas y equipos. Las inscripciones se gestionan en la plataforma del evento.</p>
+      </div>
+      <div class="gym-foot"><a class="go" href="https://crono4sports.com/evento/tarraco-hybrid-series-26" rel="noopener" target="_blank">Más información →</a></div>
+    </article>
+    <article class="gym ev" data-evento data-city="alicante" data-fecha="2026-10-25">
+      <div>
+        <p class="ev-date"><time datetime="2026-10-24">Sáb 24 – dom 25 oct 2026</time></p>
+        <h3>Hyatlón La Nucía</h3>
+        <span class="badge ghost">Hyatlón</span>
+        <p class="ev-org">Hyatlón · Federación Española de Triatlón</p>
+        <p class="ev-zone">La Nucía (Alicante) · La Nucía Combat Sports Center</p>
+        <p>Circuito de Hyatlón con carrera y estaciones funcionales, en individual, dobles y relevos.</p>
+      </div>
+      <div class="gym-foot"><a class="go" href="https://hyatlon.org/event/la-nucia" rel="noopener" target="_blank">Más información →</a></div>
+    </article>
+    <article class="gym ev" data-evento data-city="guadalajara" data-fecha="2026-10-25">
+      <div>
+        <p class="ev-date"><time datetime="2026-10-24">Sáb 24 – dom 25 oct 2026</time></p>
+        <h3>DEKA Guadalajara</h3>
+        <span class="badge ghost">DEKA</span>
+        <p class="ev-org">DEKA (Spartan)</p>
+        <p class="ev-zone">Guadalajara (Guadalajara)</p>
+        <p>DEKA FIT: 5 km de carrera con 10 estaciones de fuerza y resistencia, en individual y por equipos, y DEKA MILE.</p>
+      </div>
+      <div class="gym-foot"><a class="go" href="https://es.spartan.com/es/races/deka-guadalajara" rel="noopener" target="_blank">Más información →</a></div>
+    </article>
     <article class="gym ev" data-evento data-city="badajoz" data-fecha="2026-10-25">
       <div>
         <p class="ev-date"><time datetime="2026-10-25">Dom 25 oct 2026 · 9:30</time></p>
         <h3>Badajoz Race Hybrid · Calamonte</h3>
+        <span class="badge ghost">Formato HYROX</span>
         <p class="ev-org">Diputación de Badajoz</p>
         <p class="ev-zone">Calamonte (Badajoz) · Campo de fútbol</p>
         <p>Última cita del circuito provincial, con un formato inspirado en HYROX: ocho bloques de carrera más estación, con salidas por tandas.</p>
       </div>
       <div class="gym-foot"><a class="go" href="https://www.dip-badajoz.es/badajozrace/" rel="noopener" target="_blank">Más información →</a></div>
     </article>
+    <article class="gym ev" data-evento data-city="alicante" data-fecha="2026-11-01">
+      <div>
+        <p class="ev-date"><time datetime="2026-10-31">Sáb 31 oct – dom 1 nov 2026</time></p>
+        <h3>DEKA Alicante</h3>
+        <span class="badge ghost">DEKA</span>
+        <p class="ev-org">DEKA (Spartan)</p>
+        <p class="ev-zone">Alicante (Alicante)</p>
+        <p>Fin de semana DEKA: equipos el sábado, individual el domingo, con DEKA FIT (5 km y 10 estaciones) y DEKA MILE.</p>
+      </div>
+      <div class="gym-foot"><a class="go" href="https://es.spartan.com/es/races/deka-alicante" rel="noopener" target="_blank">Más información →</a></div>
+    </article>
     <article class="gym ev" data-evento data-city="valladolid" data-fecha="2026-11-07">
       <div>
         <p class="ev-date"><time datetime="2026-11-07">Sáb 7 nov 2026 · 10:00</time></p>
         <h3>Viding HYROX Valladolid</h3>
+        <span class="badge ghost">Formato HYROX</span>
         <p class="ev-org">Viding</p>
         <p class="ev-zone">Valladolid (Valladolid) · Viding Valladolid, Av. de Santander 2</p>
         <p>Competición por parejas en el propio centro: 8 rondas de 1 km más una estación, en dobles masculino, femenino y mixto.</p>
       </div>
       <div class="gym-foot"><a class="go" href="https://inscripciones.runvasport.es/inscripcion/viding-hyrox-valladolid/" rel="noopener" target="_blank">Más información →</a></div>
     </article>
+    <article class="gym ev" data-evento data-city="jaen" data-fecha="2026-11-07">
+      <div>
+        <p class="ev-date"><time datetime="2026-11-07">Sáb 7 nov 2026</time></p>
+        <h3>La Híbrida 4.0 Andújar</h3>
+        <span class="badge ghost">Híbrida</span>
+        <p class="ev-org">Gimnasio Jab Cross Athletics</p>
+        <p class="ev-zone">Andújar (Jaén)</p>
+        <p>Competición híbrida con formato propio, abierta a todos los niveles: 10 tramos de 400 m de carrera más 8 workouts.</p>
+      </div>
+      <div class="gym-foot"><a class="go" href="https://time2run.es/competicion-hibrida-andujar-2026/" rel="noopener" target="_blank">Más información →</a></div>
+    </article>
+    <article class="gym ev" data-evento data-city="las-palmas" data-fecha="2026-11-15">
+      <div>
+        <p class="ev-date"><time datetime="2026-11-14">Sáb 14 – dom 15 nov 2026</time></p>
+        <h3>Hyatlón Gran Canaria</h3>
+        <span class="badge ghost">Hyatlón</span>
+        <p class="ev-org">Hyatlón · Federación Española de Triatlón</p>
+        <p class="ev-zone">Las Palmas de Gran Canaria (Las Palmas) · Plaza de la Música, ExpoDeca</p>
+        <p>Circuito de Hyatlón con carrera y estaciones funcionales, en individual, dobles y relevos.</p>
+      </div>
+      <div class="gym-foot"><a class="go" href="https://hyatlon.org/event/gran-canaria" rel="noopener" target="_blank">Más información →</a></div>
+    </article>
+    <article class="gym ev" data-evento data-city="santa-cruz-de-tenerife" data-fecha="2026-11-22">
+      <div>
+        <p class="ev-date"><time datetime="2026-11-21">Sáb 21 – dom 22 nov 2026</time></p>
+        <h3>DEKA Tenerife</h3>
+        <span class="badge ghost">DEKA</span>
+        <p class="ev-org">DEKA (Spartan)</p>
+        <p class="ev-zone">Tenerife (Santa Cruz de Tenerife)</p>
+        <p>DEKA FIT, DEKA MILE y DEKA STRONG, en individual y por equipos.</p>
+      </div>
+      <div class="gym-foot"><a class="go" href="https://es.spartan.com/es/races/deka-tenerife" rel="noopener" target="_blank">Más información →</a></div>
+    </article>
+    <article class="gym ev" data-evento data-city="zaragoza" data-fecha="2026-11-29">
+      <div>
+        <p class="ev-date"><time datetime="2026-11-28">Sáb 28 – dom 29 nov 2026</time></p>
+        <h3>Hyatlón Zaragoza</h3>
+        <span class="badge ghost">Hyatlón</span>
+        <p class="ev-org">Hyatlón · Federación Española de Triatlón</p>
+        <p class="ev-zone">Zaragoza (Zaragoza) · Pabellón 4 de la Feria de Zaragoza</p>
+        <p>Circuito de Hyatlón con carrera y estaciones funcionales: individual el sábado, dobles y relevos el domingo.</p>
+      </div>
+      <div class="gym-foot"><a class="go" href="https://hyatlon.org/event/zaragoza" rel="noopener" target="_blank">Más información →</a></div>
+    </article>
+    <article class="gym ev" data-evento data-city="pontevedra" data-fecha="2026-12-13">
+      <div>
+        <p class="ev-date"><time datetime="2026-12-12">Sáb 12 – dom 13 dic 2026</time></p>
+        <h3>Hybrid Day Vigo</h3>
+        <span class="badge ghost">Híbrida</span>
+        <p class="ev-org">Hybrid Day</p>
+        <p class="ev-zone">Vigo (Pontevedra) · Av. do Aeroporto, Cabral</p>
+        <p>Dos jornadas de competición de fitness híbrido de la serie Hybrid Day.</p>
+      </div>
+      <div class="gym-foot"><a class="go" href="https://www.tickettailor.com/events/hybridday" rel="noopener" target="_blank">Más información →</a></div>
+    </article>
+    <article class="gym ev" data-evento data-city="malaga" data-fecha="2027-02-28">
+      <div>
+        <p class="ev-date"><time datetime="2027-02-27">Sáb 27 – dom 28 feb 2027</time></p>
+        <h3>DEKA Torremolinos</h3>
+        <span class="badge ghost">DEKA</span>
+        <p class="ev-org">DEKA (Spartan)</p>
+        <p class="ev-zone">Torremolinos (Málaga)</p>
+        <p>DEKA FIT por equipos el sábado y DEKA FIT individual el domingo: 5 km de carrera y 10 estaciones.</p>
+      </div>
+      <div class="gym-foot"><a class="go" href="https://es.spartan.com/es/races/deka-torremolinos" rel="noopener" target="_blank">Más información →</a></div>
+    </article>
+    <article class="gym ev" data-evento data-city="toledo" data-fecha="2027-03-07">
+      <div>
+        <p class="ev-date"><time datetime="2027-03-06">Sáb 6 – dom 7 mar 2027</time></p>
+        <h3>DEKA Toledo</h3>
+        <span class="badge ghost">DEKA</span>
+        <p class="ev-org">DEKA (Spartan)</p>
+        <p class="ev-zone">Toledo (Toledo) · Universidad de Castilla-La Mancha</p>
+        <p>DEKA FIT y DEKA MILE, en individual y por equipos.</p>
+      </div>
+      <div class="gym-foot"><a class="go" href="https://es.spartan.com/es/races/deka-toledo-2027" rel="noopener" target="_blank">Más información →</a></div>
+    </article>
+    <article class="gym ev" data-evento data-city="barcelona" data-fecha="2027-03-21">
+      <div>
+        <p class="ev-date"><time datetime="2027-03-20">Sáb 20 – dom 21 mar 2027</time></p>
+        <h3>DEKA Barcelona (primavera)</h3>
+        <span class="badge ghost">DEKA</span>
+        <p class="ev-org">DEKA (Spartan)</p>
+        <p class="ev-zone">Barcelona (Barcelona)</p>
+        <p>DEKA FIT, DEKA MILE y DEKA STRONG, en individual y por equipos.</p>
+      </div>
+      <div class="gym-foot"><a class="go" href="https://es.spartan.com/es/races/deka-barcelona-primavera" rel="noopener" target="_blank">Más información →</a></div>
+    </article>
+    <article class="gym ev" data-evento data-city="valencia" data-fecha="2027-04-04">
+      <div>
+        <p class="ev-date"><time datetime="2027-04-03">Sáb 3 – dom 4 abr 2027</time></p>
+        <h3>DEKA Valencia</h3>
+        <span class="badge ghost">DEKA</span>
+        <p class="ev-org">DEKA (Spartan)</p>
+        <p class="ev-zone">Valencia (Valencia)</p>
+        <p>DEKA FIT y DEKA MILE, en individual y por equipos.</p>
+      </div>
+      <div class="gym-foot"><a class="go" href="https://es.spartan.com/es/races/deka-valencia-2027" rel="noopener" target="_blank">Más información →</a></div>
+    </article>
+    <article class="gym ev" data-evento data-city="illes-balears" data-fecha="2027-04-18">
+      <div>
+        <p class="ev-date"><time datetime="2027-04-17">Sáb 17 – dom 18 abr 2027</time></p>
+        <h3>DEKA Ibiza</h3>
+        <span class="badge ghost">DEKA</span>
+        <p class="ev-org">DEKA (Spartan)</p>
+        <p class="ev-zone">Sant Agustí des Vedrà, Ibiza (Illes Balears)</p>
+        <p>DEKA FIT y DEKA MILE, en individual y por equipos.</p>
+      </div>
+      <div class="gym-foot"><a class="go" href="https://es.spartan.com/es/races/deka-ibiza-2027" rel="noopener" target="_blank">Más información →</a></div>
+    </article>
+    <article class="gym ev" data-evento data-city="pontevedra" data-fecha="2027-06-27">
+      <div>
+        <p class="ev-date"><time datetime="2027-06-26">Sáb 26 – dom 27 jun 2027</time></p>
+        <h3>DEKA Vigo</h3>
+        <span class="badge ghost">DEKA</span>
+        <p class="ev-org">DEKA (Spartan)</p>
+        <p class="ev-zone">Vigo (Pontevedra)</p>
+        <p>DEKA FIT y DEKA MILE, en individual y por equipos.</p>
+      </div>
+      <div class="gym-foot"><a class="go" href="https://es.spartan.com/es/races/deka-vigo-2027" rel="noopener" target="_blank">Más información →</a></div>
+    </article>
+    <article class="gym ev" data-evento data-city="madrid" data-fecha="2027-07-11">
+      <div>
+        <p class="ev-date"><time datetime="2027-07-10">Sáb 10 – dom 11 jul 2027</time></p>
+        <h3>DEKA Madrid</h3>
+        <span class="badge ghost">DEKA</span>
+        <p class="ev-org">DEKA (Spartan)</p>
+        <p class="ev-zone">Madrid (Madrid)</p>
+        <p>DEKA FIT, DEKA MILE y DEKA STRONG, en individual y por equipos.</p>
+      </div>
+      <div class="gym-foot"><a class="go" href="https://es.spartan.com/es/races/deka-madrid-2027" rel="noopener" target="_blank">Más información →</a></div>
+    </article>
   </div>
 
   <p class="sim-empty" id="sin-eventos" hidden>Ahora mismo no hay simulacros próximos en la lista. ¿Organizas uno? <a class="link" href="#organizadores">Publícalo aquí</a>.</p>
 
-  <p class="note">Los eventos de esta lista los organizan gimnasios, clubes y entidades independientes: no son carreras de HYROX y Ritmo Híbrido no los organiza. Comprueba fecha, plazas, precio y reglamento en la web de cada organizador antes de apuntarte. HYROX es una marca registrada de su titular y se menciona solo para identificar el formato.</p>
+  <p class="note">Los eventos de esta lista los organizan gimnasios, clubes, federaciones y empresas independientes: no son carreras de HYROX y Ritmo Híbrido no los organiza. «Formato HYROX» indica que la propia organización lo describe como basado en ese formato; «Híbrida», «DEKA» y «Hyatlón» tienen formatos propios. Comprueba fecha, plazas, precio y reglamento en la web de cada organizador antes de apuntarte. HYROX, DEKA y Hyatlón son marcas de sus titulares y se mencionan solo para identificar el formato.</p>
 </div></section>
 
 <section>
@@ -168,6 +379,6 @@
   <p class="legal">© <span data-year>2026</span> Ritmo Híbrido.com. Web independiente, sin relación con HYROX World GmbH ni con sus eventos oficiales. HYROX es una marca registrada de su titular y se menciona solo para identificar la competición.</p>
 </div></footer>
 <script src="../assets/js/config.js?v=8"></script>
-<script src="../assets/js/main.js?v=9"></script>
+<script src="../assets/js/main.js?v=10"></script>
 </body>
 </html>

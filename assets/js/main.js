@@ -93,15 +93,20 @@ document.querySelectorAll('.filters').forEach(group => group.addEventListener('c
     el.hidden = !(f.dataset.city === 'all' || el.dataset.city === f.dataset.city));
 }));
 
-// Simulacros: un evento con fecha pasada desaparece solo del listado (y su filtro, si se queda sin eventos).
-// Si ya no hay evento destacado, vuelve a verse la tarjeta «Este puesto está libre».
+// Simulacros: un evento con fecha pasada desaparece solo del listado (y su provincia del selector, si se queda sin eventos).
+// El selector de provincias se rellena con las de los eventos que quedan. Si ya no hay evento destacado, vuelve a verse
+// la tarjeta «Este puesto está libre».
 const simEvents = document.querySelectorAll('[data-evento]');
 if (simEvents.length) {
   simEvents.forEach(el => { if (new Date(el.dataset.fecha + 'T23:59:59') < new Date()) el.remove(); });
   const live = [...document.querySelectorAll('[data-evento]')];
-  document.querySelectorAll('.filters .f[data-city]').forEach(b => {
-    if (b.dataset.city !== 'all' && !live.some(el => el.dataset.city === b.dataset.city)) b.remove();
-  });
+  const filtro = document.getElementById('filtro-provincia');
+  if (filtro) {
+    const nombre = k => PROVINCIAS[k] || k;
+    const slugs = [...new Set(live.map(el => el.dataset.city).filter(Boolean))].sort((a, b) => nombre(a).localeCompare(nombre(b), 'es'));
+    filtro.insertAdjacentHTML('beforeend', slugs.map(k => `<option value="${k}">${nombre(k)}</option>`).join(''));
+    filtro.addEventListener('change', () => live.forEach(el => { el.hidden = !(filtro.value === 'all' || el.dataset.city === filtro.value); }));
+  }
   const slot = document.querySelector('[data-slot-libre]');
   if (slot) slot.hidden = live.some(el => el.classList.contains('gym-feat'));
   const none = document.getElementById('sin-eventos');
