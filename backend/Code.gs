@@ -91,7 +91,7 @@ function inSegment_(seg, ciudad) {
 const CFG_DEFAULTS = [
   ['SENDER_NAME', 'Ritmo Híbrido', 'Nombre que ve quien recibe los emails'],
   ['REPLY_TO', '', 'Dirección a la que llegan las respuestas (vacío = la cuenta de Google)'],
-  ['CONTACT_EMAIL', 'hola@ritmohibrido.com', 'Contacto que aparece en el pie de los emails'],
+  ['CONTACT_EMAIL', 'info@ritmohibrido.com', 'Contacto que aparece en el pie de los emails'],
   ['SITE_URL', 'https://ritmohibrido.com', 'URL de la web, sin barra final (los enlaces de los emails salen de aquí)'],
   ['PLAN_URL', 'https://ritmohibrido.com/recursos/ritmo-hibrido-plan-16-semanas.pdf', 'PDF del plan de 16 semanas'],
   ['COMISION_CIERRE', '30', 'Comisión por defecto (€) al marcar un contacto como Cerrado'],

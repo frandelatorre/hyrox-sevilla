@@ -40,7 +40,7 @@
     const out = await rhApi({ action: 'unsub', token: t });
     if (out === null) return show('Modo <span class="a">demostración</span>', 'Aún no hay backend conectado, así que no hay nada que dar de baja.', '<a class="btn" href="../">Volver al inicio</a>');
     if (out.ok) show('Te has <span class="a">dado de baja</span>', 'No recibirás más emails de Ritmo Híbrido. Si ha sido un error, puedes volver a apuntarte cuando quieras.', '<a class="btn sec" href="../plan/">Volver a apuntarme</a>');
-    else show('Enlace <span class="a">no válido</span>', 'No hemos encontrado tu suscripción con este enlace. Si sigues recibiendo emails, escríbenos a hola@ritmohibrido.com y te damos de baja a mano.', '<a class="btn" href="../">Volver al inicio</a>');
+    else show('Enlace <span class="a">no válido</span>', 'No hemos encontrado tu suscripción con este enlace. Si sigues recibiendo emails, escríbenos a info@ritmohibrido.com y te damos de baja a mano.', '<a class="btn" href="../">Volver al inicio</a>');
   } catch (e) {
     show('Algo <span class="a">ha fallado</span>', 'No hemos podido conectar. Recarga la página en un momento.', '<a class="btn" href="" onclick="location.reload();return false">Reintentar</a>');
   }
