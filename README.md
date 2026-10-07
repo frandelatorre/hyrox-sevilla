@@ -73,4 +73,4 @@ npx serve .
 
 ## Publicación
 
-Funciona en GitHub Pages (rama `main`, carpeta raíz) o subiendo la carpeta a cualquier hosting. Para usar `ritmohibrido.com` en GitHub Pages, añadir un archivo `CNAME` con el dominio y configurar el DNS.
+Producción: `https://ritmohibrido.com` (Hostinger, se despliega desde la rama `main` de GitHub). Al ser web estática también funciona en GitHub Pages o en cualquier hosting.
