@@ -93,6 +93,21 @@ document.querySelectorAll('.filters').forEach(group => group.addEventListener('c
     el.hidden = !(f.dataset.city === 'all' || el.dataset.city === f.dataset.city));
 }));
 
+// Simulacros: un evento con fecha pasada desaparece solo del listado (y su filtro, si se queda sin eventos).
+// Si ya no hay evento destacado, vuelve a verse la tarjeta «Este puesto está libre».
+const simEvents = document.querySelectorAll('[data-evento]');
+if (simEvents.length) {
+  simEvents.forEach(el => { if (new Date(el.dataset.fecha + 'T23:59:59') < new Date()) el.remove(); });
+  const live = [...document.querySelectorAll('[data-evento]')];
+  document.querySelectorAll('.filters .f[data-city]').forEach(b => {
+    if (b.dataset.city !== 'all' && !live.some(el => el.dataset.city === b.dataset.city)) b.remove();
+  });
+  const slot = document.querySelector('[data-slot-libre]');
+  if (slot) slot.hidden = live.some(el => el.classList.contains('gym-feat'));
+  const none = document.getElementById('sin-eventos');
+  if (none) none.hidden = live.length > 0;
+}
+
 // API del backend (Google Apps Script). Las peticiones van como texto plano para evitar el preflight de CORS.
 async function rhApi(payload) {
   const endpoint = (window.RH_CONFIG || {}).endpoint;
