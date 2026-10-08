@@ -1,0 +1,9 @@
+RewriteEngine On
+
+# www.ritmohibrido.com -> ritmohibrido.com
+RewriteCond %{HTTP_HOST} ^www\.ritmohibrido\.com$ [NC]
+RewriteRule ^ https://ritmohibrido.com%{REQUEST_URI} [R=301,L]
+
+# hyrox-sevilla.com y www.hyrox-sevilla.com -> ritmohibrido.com
+RewriteCond %{HTTP_HOST} ^(www\.)?hyrox-sevilla\.com$ [NC]
+RewriteRule ^ https://ritmohibrido.com%{REQUEST_URI} [R=301,L]
