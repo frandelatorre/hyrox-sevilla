@@ -52,6 +52,8 @@ function buildStats_(d, nowDate) {
   const subs = d.subs, leads = d.leads, camps = d.camps;
   const sendsOk = d.sends.filter(r => r.resultado === 'OK');
   const active = subs.filter(s => s.estado === 'Confirmado');
+  // Quienes pidieron el plan (lead plan o vacío) frente a las altas de solo alertas
+  const planSubs = subs.filter(wantsPlan_), activePlan = planSubs.filter(s => s.estado === 'Confirmado');
   const closed = leads.filter(l => l.estado === 'Cerrado');
 
   const thisMonth = monthKey_(nowDate);
@@ -86,8 +88,8 @@ function buildStats_(d, nowDate) {
 
   const contacted = leads.filter(l => l.estado === 'Contactado' || l.estado === 'Cerrado').length;
   const embudo = [
-    { k: 'registros', label: 'Altas (planes pedidos)', value: subs.length, base: null },
-    { k: 'activos', label: 'Siguen suscritos (sin baja)', value: active.length, base: 0, baseLabel: 'altas' },
+    { k: 'registros', label: 'Altas (planes pedidos)', value: planSubs.length, base: null },
+    { k: 'activos', label: 'Siguen suscritos (sin baja)', value: activePlan.length, base: 0, baseLabel: 'altas' },
     { k: 'contactos', label: 'Contactos con el centro', value: leads.length, base: 1, baseLabel: 'suscritos' },
     { k: 'contactados', label: 'Contactados por el centro', value: contacted, base: 2, baseLabel: 'contactos' },
     { k: 'cierres', label: 'Cierres (altas en el centro)', value: closed.length, base: 3, baseLabel: 'contactados' },
@@ -111,7 +113,7 @@ function buildStats_(d, nowDate) {
     cierres: (leadsByProv[k] || []).filter(l => l.estado === 'Cerrado').length,
   })).sort((a, b) => b.registros - a.registros);
 
-  const byRace = group(subs.filter(s => s.estado === 'Confirmado'), s => s.carrera);
+  const byRace = group(activePlan, s => s.carrera);
   const carreras = Object.keys(byRace).map(k => ({ carrera: k === '—' ? 'Sin elegir' : k, activos: byRace[k].length }))
     .sort((a, b) => b.activos - a.activos);
 
@@ -166,6 +168,10 @@ function buildStats_(d, nowDate) {
   return {
     generado: nowDate.toISOString(),
     kpis, semanas, embudo, provincias, ciudades: provincias, carreras, origenes, emails, secuencia, // `ciudades`: copia para el panel antiguo
+    porLead: {
+      plan: { registros: planSubs.length, activos: activePlan.length },
+      alertas: { registros: subs.length - planSubs.length, activos: active.length - activePlan.length },
+    },
     calendario: { proximas: planned, huecos },
     dinero: { meses, total: meses.reduce((t, m) => t + m.total, 0), cierresTotal: closed.length, comisionTotal: sum(closed) },
   };
@@ -180,7 +186,8 @@ function systemInfo_(d) {
     { k: 'Contraseña del panel', ok: !!PropertiesService.getScriptProperties().getProperty('PANEL_PASSWORD'), msg: 'Falta PANEL_PASSWORD' },
     { k: 'URL de la web', ok: /^https:\/\//.test(cfg.SITE_URL || ''), msg: 'Config > SITE_URL debe empezar por https://' },
   ];
-  const sinPlan = d.subs.filter(s => s.estado === 'Confirmado' && !Number(s.emails_confirmacion || 0));
+  // Solo cuentan quienes pidieron el plan: las altas de alertas no reciben email, así que no es un fallo
+  const sinPlan = d.subs.filter(s => s.estado === 'Confirmado' && wantsPlan_(s) && !Number(s.emails_confirmacion || 0));
   return {
     cuotaRestante: MailApp.getRemainingDailyQuota(),
     triggers,

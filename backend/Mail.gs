@@ -76,7 +76,7 @@ function layout_(o) {
 
 function welcomeEmail_(sub) {
   const c = cfg_();
-  const consent = '<p style="margin:0 0 16px;font-size:14px;color:' + MAIL_C.mut + '">Al pedir el plan aceptaste recibir, de vez en cuando, comunicaciones informativas y comerciales de Ritmo Híbrido y de centros colaboradores (novedades, consejos y ofertas). Si no te interesa, o no fuiste tú quien lo pidió, puedes darte de baja con un clic al pie de este email.</p>';
+  const consent = '<p style="margin:0 0 16px;font-size:14px;color:' + MAIL_C.mut + '">Al pedir el plan aceptaste recibir, de vez en cuando, comunicaciones informativas y comerciales por email de Ritmo Híbrido y de centros colaboradores (novedades, consejos, calendario y ofertas), sin que cedamos tus datos a esos centros. Puedes retirar tu consentimiento cuando quieras con un clic al pie de este email.</p>';
   return layout_({
     preheader: 'Aquí tienes tu plan de 16 semanas.',
     title: 'Aquí tienes tu plan',
@@ -98,7 +98,7 @@ function campaignEmail_(camp, sub) {
     title: camp.titulo || camp.asunto,
     bodyHtml: richText_(camp.cuerpo),
     adHtml: ad,
-    reason: 'Recibes este email porque te apuntaste a ritmohibrido.com y aceptaste recibir información y ofertas por email.',
+    reason: 'Recibes este email porque te apuntaste en ritmohibrido.com y aceptaste recibir comunicaciones informativas y comerciales por email, de Ritmo Híbrido y de centros colaboradores.',
     unsubUrl: c.SITE_URL + '/baja/?t=' + sub.token,
   });
 }
@@ -258,7 +258,7 @@ function sequenceEmail_(paso, sub) {
     subject: o.subject,
     html: layout_({
       preheader: o.preheader, title: o.title, bodyHtml: o.body, adHtml: o.ad || '',
-      reason: 'Recibes este email porque pediste el plan de 16 semanas en ritmohibrido.com y aceptaste recibir información y ofertas por email.',
+      reason: 'Recibes este email porque pediste el plan de 16 semanas en ritmohibrido.com y aceptaste recibir comunicaciones informativas y comerciales por email.',
       unsubUrl: c.SITE_URL + '/baja/?t=' + sub.token,
     }),
   };

@@ -140,6 +140,7 @@ if (document.body.dataset.provincia && pageProvince()) document.querySelectorAll
 // Formularios de alta
 document.querySelectorAll('form[data-signup]').forEach(form => {
   const t0 = Date.now();
+  const lead = form.dataset.lead || 'plan'; // tipo de alta: `plan` (descarga del PDF) u otros avisos (sin PDF)
   const $ = sel => form.querySelector(sel);
   const prov = $('select[name="provincia"]');
   if (prov) {
@@ -164,24 +165,35 @@ document.querySelectorAll('form[data-signup]').forEach(form => {
     const f = Object.fromEntries(new FormData(form).entries());
     if (!f.provincia) return say('Elige tu provincia.', true);
 
+    // Los checkboxes repetidos (name="intereses") se leen aparte: Object.fromEntries se quedaría solo con el último.
+    const intereses = new FormData(form).getAll('intereses');
+
     const btn = $('button[type="submit"]'), label = btn.textContent;
     btn.disabled = true; btn.textContent = 'Enviando…'; say('');
     try {
       const out = await rhApi({
         // El backend sigue llamando `ciudad` al campo (así lo entienden también las versiones antiguas); lleva la provincia.
-        action: 'signup', email: f.email, ciudad: f.provincia, carrera: f.carrera || '',
+        action: 'signup', email: f.email, ciudad: f.provincia, carrera: f.carrera || '', lead, intereses,
         web: f.ritmo_extra || '', ms: Date.now() - t0, origen: location.pathname.replace(/\/$/, '') || '/',
       });
       if (out === null) { // demostración: sin backend
-        form.innerHTML = '<p class="form-ok">¡Hecho! (modo demostración)</p>' +
-          '<a class="btn" href="' + (form.dataset.plan || '') + '" download>Descargar el plan (PDF)</a>';
+        form.innerHTML = lead === 'plan'
+          ? '<p class="form-ok">¡Hecho! (modo demostración)</p>' +
+            '<a class="btn" href="' + (form.dataset.plan || '') + '" download>Descargar el plan (PDF)</a>'
+          : '<p class="form-ok">¡Hecho! (modo demostración)</p>';
       } else if (out.ok) {
-        const pdf = out.plan || form.dataset.plan;
-        form.innerHTML = '<p class="form-ok">¡Listo! Ya tienes el plan.</p>' +
-          (pdf ? '<a class="btn" href="' + pdf + '" download>Descargar el plan (PDF)</a>' : '') +
-          '<p class="form-sub">También te lo hemos enviado por email. Si no lo ves en unos minutos, mira en spam o promociones.</p>';
+        if (lead === 'plan') {
+          const pdf = out.plan || form.dataset.plan;
+          form.innerHTML = '<p class="form-ok">¡Listo! Ya tienes el plan.</p>' +
+            (pdf ? '<a class="btn" href="' + pdf + '" download>Descargar el plan (PDF)</a>' : '') +
+            '<p class="form-sub">También te lo hemos enviado por email. Si no lo ves en unos minutos, mira en spam o promociones.</p>';
+        } else {
+          // Cualquier otro tipo de alta (avisos): sin PDF y sin prometer ningún email enviado.
+          form.innerHTML = '<p class="form-ok">¡Listo! Estás apuntado a los avisos.</p>' +
+            '<p class="form-sub">Te escribiremos al email que has indicado. Puedes darte de baja con un clic desde cualquier mensaje.</p>';
+        }
       } else {
-        const errs = { email: 'Revisa el email: no parece válido.', ciudad: 'Elige tu provincia.', busy: 'Hay mucha demanda ahora mismo. Inténtalo de nuevo en unos minutos.' };
+        const errs = { email: 'Revisa el email: no parece válido.', ciudad: 'Elige tu provincia.', lead: 'No hemos podido procesar tu solicitud. Recarga la página e inténtalo de nuevo.', busy: 'Hay mucha demanda ahora mismo. Inténtalo de nuevo en unos minutos.' };
         say(errs[out.error] || 'No hemos podido enviarlo. Inténtalo de nuevo en un momento.', true);
         btn.disabled = false; btn.textContent = label;
       }

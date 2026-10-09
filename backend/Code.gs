@@ -10,9 +10,15 @@
 
 const TZ = 'Europe/Madrid';
 
-// Versión del texto de consentimiento (aviso del formulario y email con el plan). Súbela cada vez que lo cambies:
-// queda guardada junto a la fecha de cada confirmación como prueba de qué aceptó cada persona.
-const CONSENT_VERSION = '2026-10-v3';
+// Versión del texto de consentimiento: el de TODOS los avisos de la web (plan y alertas) y el del email con el plan.
+// Súbela cada vez que cambies cualquiera de ellos: queda guardada junto a la fecha de cada confirmación como prueba
+// de qué aceptó cada persona.
+const CONSENT_VERSION = '2026-10-v4';
+
+// Tipos de alta que acepta el formulario: `plan` (recibe el PDF y la secuencia) y `alertas` (solo avisos y campañas).
+const SIGNUP_LEADS = ['plan', 'alertas'];
+// Intereses que puede marcar quien se apunta a las alertas (lista cerrada: lo demás se descarta).
+const INTERESTS = ['carreras', 'simulacros', 'gimnasios'];
 
 const T = {
   SUBS: 'Suscriptores',
@@ -25,7 +31,7 @@ const T = {
 
 const COLS = {
   'Suscriptores': ['id', 'fecha_alta', 'email', 'ciudad', 'carrera', 'origen', 'estado', 'marketing',
-    'fecha_confirmacion', 'consentimiento', 'fecha_baja', 'token', 'emails_confirmacion', 'secuencia', 'fecha_secuencia'],
+    'fecha_confirmacion', 'consentimiento', 'fecha_baja', 'token', 'emails_confirmacion', 'secuencia', 'fecha_secuencia', 'intereses', 'lead'],
   'Contactos': ['id', 'fecha', 'email', 'nombre', 'telefono', 'ciudad', 'estado', 'centro', 'fecha_cierre', 'comision', 'notas'],
   'Campañas': ['id', 'mes', 'fecha_envio', 'asunto', 'titulo', 'cuerpo', 'publi_activa', 'publi_titulo', 'publi_texto',
     'publi_enlace', 'publi_boton', 'segmento_ciudad', 'estado', 'enviados', 'errores', 'fecha_fin', 'ingreso_publi'],
@@ -150,9 +156,11 @@ function json_(obj) {
 // ------------------------------------------------------------------- Alta
 
 /**
- * Alta de un solo paso: quien pide el plan acepta recibir comunicaciones al pulsar el botón del formulario
- * (el aviso que lo acompaña lo dice). Se envía el plan en el acto y se guardan la fecha y la versión del texto
- * (CONSENT_VERSION). La columna `emails_confirmacion` cuenta los emails con el plan enviados (nombre heredado).
+ * Alta de un solo paso, para el plan y para las alertas: quien pulsa el botón del formulario acepta recibir
+ * comunicaciones (el aviso que lo acompaña lo dice) y se guardan la fecha y la versión del texto (CONSENT_VERSION).
+ * `lead` = 'plan' (por defecto, web en caché) o 'alertas'. Solo el plan envía un email, en el acto y con el PDF;
+ * las alertas quedan dadas de alta sin email ni PDF (reciben las campañas, no la secuencia). `intereses` es
+ * una lista cerrada (INTERESTS). La columna `emails_confirmacion` cuenta los emails con el plan enviados (nombre heredado).
  */
 function handleSignup_(req) {
   const email = String(req.email || '').trim().toLowerCase();
@@ -166,15 +174,22 @@ function handleSignup_(req) {
   // Acepta los valores antiguos (p. ej. `bilbao`) y guarda siempre el slug actual (`bizkaia`).
   const ciudad = provinceSlug_(req.ciudad);
   if (!ciudad) return { ok: false, error: 'ciudad' };
+  const lead = parseLead_(req.lead);
+  if (!lead) return { ok: false, error: 'lead' };
+  const intereses = parseInterests_(req.intereses);
   const carrera = /^[a-z0-9-]{1,20}$/.test(String(req.carrera || '')) ? req.carrera : '';
   const origen = String(req.origen || '').slice(0, 40);
 
+  // La clave lleva el tipo de alta: pedir el plan justo después de apuntarse a las alertas no queda bloqueado
   const cache = CacheService.getScriptCache();
-  if (cache.get('sg:' + email)) return { ok: true, plan: cfg_().PLAN_URL };
+  const key = 'sg:' + lead + ':' + email;
+  if (cache.get(key)) return lead === 'plan' ? { ok: true, plan: cfg_().PLAN_URL } : { ok: true };
   if (rateLimited_()) return { ok: false, error: 'busy' };
-  cache.put('sg:' + email, '1', 60);
+  cache.put(key, '1', 60);
 
   return withLock_(() => {
+    // Cierra la ventana entre desplegar el código nuevo y ejecutar ensureSchema_: sin las columnas, la hoja descartaría lead e intereses
+    ensureColumns_(T.SUBS);
     const now = new Date();
     const found = table_(T.SUBS).rows.find(s => String(s.email).toLowerCase() === email);
     const data = { ciudad, carrera, origen };
@@ -182,28 +197,81 @@ function handleSignup_(req) {
     let sub, row;
 
     if (!found) {
-      sub = Object.assign({ id: shortId_(), fecha_alta: now, email, token: token_(), emails_confirmacion: 0, secuencia: 0 }, data, consent);
+      sub = Object.assign({ id: shortId_(), fecha_alta: now, email, token: token_(), emails_confirmacion: 0, secuencia: 0 }, data, consent,
+        { intereses: intereses.join(','), lead });
       appendObj_(T.SUBS, sub);
       row = lastRow_(T.SUBS);
     } else {
       // Ya estaba en la lista: se actualizan sus datos. Si estaba de baja (o pendiente), vuelve a darse de alta.
-      const patch = Object.assign({}, data);
+      const reset = found.estado === 'Baja';
+      const hadPlan = wantsPlan_(found); // antes del patch: las filas antiguas, con `lead` vacío, cuentan como plan
+      const patch = { ciudad };
+      if (lead === 'plan' || reset) {
+        patch.carrera = carrera;
+        patch.origen = origen;
+      } else if (carrera) {
+        patch.carrera = carrera; // las alertas no pisan el origen ni borran la carrera que ya tenía
+      }
+      patch.intereses = (reset ? intereses : mergeInterests_(found.intereses, intereses)).join(',');
+      // `lead` es monótono: plan > alertas. Quien ya pidió el plan no baja a alertas; tras una baja se parte de cero
+      patch.lead = reset ? lead : ((lead === 'plan' || hadPlan) ? 'plan' : 'alertas');
       if (found.estado !== 'Confirmado') Object.assign(patch, consent, { fecha_alta: now });
-      if (found.estado === 'Baja' || !found.token) patch.token = token_();
-      // Petición nueva tras una baja: vuelve a poder recibir el plan y la secuencia empieza de cero
-      if (found.estado === 'Baja') Object.assign(patch, { emails_confirmacion: 0, secuencia: 0, fecha_secuencia: '' });
+      else if (String(found.consentimiento) !== CONSENT_VERSION) Object.assign(patch, consent); // re-consentimiento con el texto nuevo
+      if (reset || !found.token) patch.token = token_();
+      if (reset) {
+        // Petición nueva tras una baja: vuelve a poder recibir el plan y la secuencia empieza de cero
+        Object.assign(patch, { emails_confirmacion: 0, secuencia: 0, fecha_secuencia: '' });
+      } else if (lead === 'plan' && !hadPlan) {
+        // De alertas a plan: la secuencia de bienvenida cuenta desde que pide el plan
+        Object.assign(patch, { fecha_alta: now, secuencia: 0, fecha_secuencia: '' });
+      }
       updateObj_(T.SUBS, found._row, patch);
       sub = Object.assign(found, patch);
       row = found._row;
     }
 
-    sendPlan_(sub, row);
-    return { ok: true, plan: cfg_().PLAN_URL };
+    if (lead === 'plan') {
+      sendPlan_(sub, row);
+      return { ok: true, plan: cfg_().PLAN_URL };
+    }
+    return { ok: true };
   });
 }
 
-/** Envía el email con el plan (máximo 6 por persona para que el formulario no sirva para enviar spam). */
+/** Tipo de alta de la petición: ausente = 'plan' (web en caché). Un valor que no es 'plan' ni 'alertas' (o no es texto) es inválido (null). */
+function parseLead_(raw) {
+  if (raw === undefined || raw === null) return 'plan';
+  if (typeof raw !== 'string') return null;
+  const v = raw.trim().toLowerCase();
+  return SIGNUP_LEADS.indexOf(v) >= 0 ? v : null;
+}
+
+/** Lista de intereses (array o cadena «a,b») → array ordenado, sin repetidos y solo con los de INTERESTS. Lee como mucho 20 elementos. */
+function parseInterests_(raw) {
+  const list = Array.isArray(raw) ? raw : (typeof raw === 'string' ? raw.split(',') : []);
+  const out = [];
+  list.slice(0, 20).forEach(x => {
+    if (typeof x !== 'string') return;
+    const k = x.trim().toLowerCase();
+    if (INTERESTS.indexOf(k) >= 0 && out.indexOf(k) < 0) out.push(k);
+  });
+  return out.sort();
+}
+
+/** Une los intereses ya guardados en la hoja (cadena «a,b») con los nuevos. */
+function mergeInterests_(current, add) {
+  return parseInterests_(parseInterests_(current).concat(add || []));
+}
+
+/** ¿Pidió el plan? Las filas antiguas (`lead` vacío) sí. Cualquier otro valor distinto de 'plan' no recibe nunca el PDF ni la secuencia. */
+function wantsPlan_(sub) {
+  const l = String(sub && sub.lead !== undefined && sub.lead !== null ? sub.lead : '').trim().toLowerCase();
+  return l === '' || l === 'plan';
+}
+
+/** Envía el email con el plan (máximo 6 por persona para que el formulario no sirva para enviar spam). Solo a quien lo pidió. */
 function sendPlan_(sub, row) {
+  if (!wantsPlan_(sub)) return;
   const sent = Number(sub.emails_confirmacion || 0);
   if (sent >= 6) return;
   if (!canSend_(1)) { logError_('plan', 'Sin cuota de email: ' + sub.email); return; }
@@ -281,7 +349,7 @@ function retryPlanEmails_() {
   const limit = Date.now() - 7 * 864e5;
   const out = {};
   table_(T.SUBS).rows
-    .filter(s => s.estado === 'Confirmado' && !Number(s.emails_confirmacion || 0) && s.token && +toDate_(s.fecha_alta) > limit)
+    .filter(s => s.estado === 'Confirmado' && !Number(s.emails_confirmacion || 0) && s.token && +toDate_(s.fecha_alta) > limit && wantsPlan_(s))
     .slice(0, 20)
     .forEach(s => { out[s.email] = true; sendPlan_(s, s._row); });
   return out;
@@ -354,7 +422,7 @@ function sendDueCampaign_(t0) {
 // ------------------------------------------------- Secuencia de bienvenida
 
 /**
- * Envía a cada suscriptor activo el siguiente email de SEQUENCE que le toque por los días desde su alta.
+ * Envía a cada suscriptor activo que pidió el plan (no a las altas de solo alertas) el siguiente email de SEQUENCE que le toque por los días desde su alta.
  * - Si se le han pasado varios (p. ej. unos días sin cuota), recibe solo el más reciente y los anteriores se saltan:
  *   nunca le llega el email del día 2 en la semana 4.
  * - Entre dos emails de la secuencia, o tras una campaña, pasan al menos SEQ_MIN_GAP_DAYS días.
@@ -379,6 +447,7 @@ function sendSequence_(t0, skip) {
   table_(T.SUBS).rows.forEach(s => {
     const alta = toDate_(s.fecha_alta);
     if (s.estado !== 'Confirmado' || s.marketing !== 'SI' || !s.token || !alta || alta < since) return;
+    if (!wantsPlan_(s)) return; // quien nunca pidió el plan no recibe una secuencia que habla del plan (sí las campañas del mes)
     if (!Number(s.emails_confirmacion || 0)) return; // antes tiene que haberle llegado el plan
     const last = toDate_(s.fecha_secuencia);
     if ((last && now - last < gap) || recentCamp[s.email] || (skip && skip[s.email])) return; // `skip`: hoy ya le llegó el plan
@@ -410,21 +479,24 @@ function sendSequence_(t0, skip) {
   if (log.length) sendsSh.getRange(sendsSh.getLastRow() + 1, 1, log.length, 4).setValues(log);
 }
 
+/** Añade al final de una hoja existente las columnas de COLS que le falten, sin tocar los datos. Una hoja vacía no se toca. */
+function ensureColumns_(name) {
+  const sh = sheet_(name);
+  if (sh.getLastRow() === 0) return;
+  const head = headOf_(sh);
+  const missing = COLS[name].filter(col => head.indexOf(col) < 0);
+  if (missing.length) {
+    sh.getRange(1, head.length + 1, 1, missing.length).setValues([missing])
+      .setFontWeight('bold').setBackground('#0E1013').setFontColor('#FFFFFF');
+  }
+}
+
 /**
  * Pone al día una hoja creada con una versión anterior: añade al final las columnas nuevas de COLS y los ajustes nuevos
  * de CFG_DEFAULTS, sin tocar los datos. La primera vez fija SECUENCIA_DESDE. Lo llaman setup y runDailyJob.
  */
 function ensureSchema_() {
-  Object.keys(COLS).forEach(name => {
-    const sh = sheet_(name);
-    if (sh.getLastRow() === 0) return;
-    const head = headOf_(sh);
-    const missing = COLS[name].filter(col => head.indexOf(col) < 0);
-    if (missing.length) {
-      sh.getRange(1, head.length + 1, 1, missing.length).setValues([missing])
-        .setFontWeight('bold').setBackground('#0E1013').setFontColor('#FFFFFF');
-    }
-  });
+  Object.keys(COLS).forEach(ensureColumns_);
   const cfg = sheet_(T.CFG);
   if (cfg.getLastRow() === 0) return;
   const keys = table_(T.CFG).rows.map(r => r.clave);

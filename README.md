@@ -63,6 +63,21 @@ Web estática: HTML, CSS y JavaScript sin dependencias ni paso de compilación.
 - **ID de Amazon:** el ID de afiliado (`delatorre07-21`) va en el parámetro `tag=` de los enlaces de `material/index.html`; para cambiarlo, buscar y reemplazar el ID anterior en ese archivo. Los enlaces son búsquedas sin precios, valoraciones ni imágenes de Amazon (las condiciones lo prohíben si no vienen de su API) y no deben ir en emails ni en el PDF del plan.
 - **Formularios y panel:** hablan con el backend de `backend/` a través de la URL de `assets/js/config.js` (vacía = modo demostración). Instalación en `backend/README.md`.
 
+## Formularios y consentimiento
+
+- **`data-lead`:** cada `form[data-signup]` indica su tipo de alta con `data-lead` (por defecto `plan`). Con `plan` se descarga el PDF y se promete el email del plan; cualquier otro valor (p. ej. `alertas`) solo confirma el alta en los avisos, sin PDF. El formulario envía `lead` e `intereses` (checkboxes `name="intereses"`, opcionales) al backend.
+- **Aviso de consentimiento:** el `<p class="fine" data-consent="…">` que acompaña al botón es el texto canónico y su atributo es la versión (debe coincidir con `CONSENT_VERSION` de `backend/Code.gs`). Sin casilla premarcada.
+  - **Plan** (botón «Enviarme el plan»; en `plan/` el enlace es `../privacidad/`):
+
+    > Al pulsar «Enviarme el plan», aceptas que Ritmo Híbrido use tu email, tu provincia y, si la eliges, tu carrera para enviarte el plan por email y, además, para enviarte comunicaciones informativas y comerciales por email (novedades, consejos, calendario y ofertas propias y de centros colaboradores, a los que no cedemos tus datos). Puedes retirar tu consentimiento y darte de baja con un clic desde cualquier mensaje. Responsable: Ritmo Híbrido (info@ritmohibrido.com). Más información y tus derechos en la política de privacidad.
+
+  - **Alertas** (Fase 1; sustituye {BOTÓN} por el texto del botón y ajusta la ruta de `privacidad/` según la profundidad de la página):
+
+    > Al pulsar «{BOTÓN}», aceptas que Ritmo Híbrido use tu email, tu provincia y, si la eliges, tu carrera para avisarte por email de novedades de carreras, simulacros y gimnasios de tu provincia según los intereses que marques y, además, para enviarte comunicaciones informativas y comerciales por email (novedades, consejos y ofertas propias y de centros colaboradores, a los que no cedemos tus datos). Puedes retirar tu consentimiento y darte de baja con un clic desde cualquier mensaje. Responsable: Ritmo Híbrido (info@ritmohibrido.com). Más información y tus derechos en la política de privacidad.
+
+- **Al subir `CONSENT_VERSION`** (`backend/Code.gs`), actualiza todos los `data-consent` de la web (`grep -rn data-consent`) y la fecha de `privacidad/` si cambia el texto.
+- **Orden de despliegue:** primero la web y justo después el backend (nuevo `.gs` → ejecutar `ensureSchema_` → Nueva versión de la implementación). Los formularios de alertas de la Fase 1 solo se publican **después** de desplegar el backend.
+
 ## Ver en local
 
 Abrir `index.html` en el navegador, o servir la carpeta:

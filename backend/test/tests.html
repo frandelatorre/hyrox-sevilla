@@ -353,7 +353,171 @@ async function run() {
   const oldCfg = SpreadsheetApp.getActive().insertSheet('Config');
   oldCfg.appendRow(['clave', 'valor', 'nota']); CFG_DEFAULTS.filter(([k]) => k.indexOf('SECUENCIA') < 0).forEach(r => oldCfg.appendRow(r));
   runDailyJob();
-  check('hoja de una versión anterior: añade columnas y ajustes nuevos sin perder datos, y la secuencia funciona', old.rows[0].slice(13).join() === 'secuencia,fecha_secuencia' && old.rows[1][2] === 'vieja@example.com' && cfg_().SECUENCIA_ACTIVA === 'SI' && G.sent.some(m => m.to === 'vieja@example.com'), JSON.stringify(old.rows[0]));
+  check('hoja de una versión anterior: añade columnas y ajustes nuevos sin perder datos, y la secuencia funciona', old.rows[0].slice(13).join() === 'secuencia,fecha_secuencia,intereses,lead' && old.rows[1][2] === 'vieja@example.com' && cfg_().SECUENCIA_ACTIVA === 'SI' && G.sent.some(m => m.to === 'vieja@example.com'), JSON.stringify(old.rows[0]));
+
+  // --- Altas de alertas y de plan: `lead` e `intereses`
+  G.reset(); setup();
+  const free = () => { clearThrottle(); delete G.cache.hr; }; // olvida el antiabuso de 1 min por email y el contador de 40 altas/hora
+  const subBy2 = e => subs().find(s => s.email === e);
+  const recent = d => d instanceof Date && Math.abs(Date.now() - +d) < 6e4;
+  check('CONSENT_VERSION es 2026-10-v4', CONSENT_VERSION === '2026-10-v4');
+  check('COLS y la cabecera de Suscriptores terminan en intereses,lead', COLS['Suscriptores'].slice(-2).join() === 'intereses,lead' && G.sheets['Suscriptores'].rows[0].slice(-2).join() === 'intereses,lead', G.sheets['Suscriptores'].rows[0].join());
+
+  free(); r = post(form({ email: 'p0@example.com' }));
+  const p0 = subBy2('p0@example.com');
+  check('alta sin lead (web en caché): cuenta como plan, envía el PDF, responde con el plan y guarda el consentimiento v4',
+    r.ok === true && /\.pdf$/.test(r.plan) && p0.lead === 'plan' && G.sent.length === 1 && G.sent[0].to === 'p0@example.com' && p0.consentimiento === '2026-10-v4' && Number(p0.emails_confirmacion) === 1, JSON.stringify([r, p0.lead]));
+  const planMail = G.sent[0].htmlBody;
+  check('el email del plan menciona comunicaciones comerciales, centros colaboradores y que no se ceden los datos', /comerciales/.test(planMail) && /centros colaboradores/.test(planMail) && /sin que cedamos tus datos/.test(planMail) && /no has sido tú/.test(planMail));
+  free(); r = post(form({ email: 'p1@example.com', lead: 'plan', intereses: ['carreras'] }));
+  check('lead "plan" explícito: igual que sin lead', r.ok === true && /\.pdf$/.test(r.plan) && subBy2('p1@example.com').lead === 'plan' && G.sent.length === 2 && lastMail().to === 'p1@example.com');
+  free(); r = post(form({ email: 'p2@example.com', lead: ' PLAN ' }));
+  check('lead con mayúsculas y espacios se normaliza', r.ok === true && /\.pdf$/.test(r.plan) && subBy2('p2@example.com').lead === 'plan');
+
+  G.sent = []; free(); r = post(form({ email: 'al@example.com', lead: 'alertas', intereses: ['carreras'] }));
+  const al = subBy2('al@example.com');
+  check('alta de alertas: ok, sin plan en la respuesta y sin ningún email', r.ok === true && !('plan' in r) && G.sent.length === 0, JSON.stringify(r) + G.sent.length);
+  check('alta de alertas: queda Confirmado, con marketing SI, token, consentimiento v4, lead alertas y sin emails del plan',
+    al.estado === 'Confirmado' && al.marketing === 'SI' && /^[a-f0-9]{32}$/.test(al.token) && al.consentimiento === '2026-10-v4' && recent(al.fecha_confirmacion) && al.lead === 'alertas' && Number(al.emails_confirmacion) === 0 && al.intereses === 'carreras', JSON.stringify(al));
+
+  const nSubsL = subs().length, nSentL = G.sent.length;
+  const badLeads = ['premium', 'constructor', '__proto__', '', ['plan'], {}, 5];
+  const badRes = badLeads.map(v => { free(); return post(form({ email: 'bad@example.com', lead: v })); });
+  check('lead inválido (texto desconocido, nombres internos de objeto, vacío, array, objeto, número): error "lead", sin fila ni email', badRes.every(x => x.error === 'lead') && subs().length === nSubsL && G.sent.length === nSentL, JSON.stringify(badRes));
+
+  const itOf = (email, intereses, lead = 'alertas') => { free(); post(form({ email, lead, intereses })); return (subBy2(email) || {}).intereses; };
+  check('intereses en array: se descartan desconocidos, no-textos y repetidos', itOf('i1@example.com', ['carreras', 'gimnasios', 'foo', 'carreras', 5, null, ' GIMNASIOS ']) === 'carreras,gimnasios');
+  check('intereses en cadena "a, b": se ordenan y se limpian', itOf('i2@example.com', 'simulacros, gimnasios') === 'gimnasios,simulacros');
+  check('intereses con fórmulas o inválidos quedan vacíos', itOf('i3@example.com', ['=HYPERLINK("http://x","y")', '=1+1']) === '' && itOf('i4@example.com', '=1+1') === '' && itOf('i5@example.com', { carreras: true }) === '' && itOf('i6@example.com', undefined) === '');
+  check('de los intereses solo se leen los 20 primeros elementos', itOf('i7@example.com', Array(20).fill('x').concat(['carreras'])) === '' && itOf('i8@example.com', Array(19).fill('x').concat(['carreras'])) === 'carreras');
+
+  // Re-altas
+  G.sent = [];
+  itOf('u@example.com', ['carreras']); itOf('u@example.com', ['gimnasios']);
+  check('re-alta: los intereses se unen a los que ya tenía', subBy2('u@example.com').intereses === 'carreras,gimnasios' && subs().filter(s => s.email === 'u@example.com').length === 1);
+  itOf('u@example.com', undefined); itOf('u@example.com', []);
+  check('re-alta sin intereses no borra los guardados', subBy2('u@example.com').intereses === 'carreras,gimnasios' && G.sent.length === 0);
+
+  free(); post(form({ email: 'cp@example.com', carrera: 'madrid', origen: '/plan/', ciudad: 'sevilla', intereses: ['carreras'] }));
+  const nM = G.sent.length, cpTok = subBy2('cp@example.com').token;
+  free(); r = post(form({ email: 'cp@example.com', lead: 'alertas', carrera: '', origen: '/alertas/', ciudad: 'cadiz', intereses: ['simulacros'] }));
+  let cpx = subBy2('cp@example.com');
+  check('alertas sobre quien ya pidió el plan: conserva carrera, origen y lead plan; actualiza provincia; une intereses; ni email ni plan en la respuesta',
+    r.ok === true && !('plan' in r) && G.sent.length === nM && cpx.carrera === 'madrid' && cpx.origen === '/plan/' && cpx.lead === 'plan' && cpx.ciudad === 'cadiz' && cpx.intereses === 'carreras,simulacros' && cpx.token === cpTok, JSON.stringify(cpx));
+  free(); post(form({ email: 'cp@example.com', lead: 'alertas', carrera: 'valencia', origen: '/otra/' }));
+  cpx = subBy2('cp@example.com');
+  check('alertas con carrera elegida la actualiza, pero nunca pisa el origen', cpx.carrera === 'valencia' && cpx.origen === '/plan/' && cpx.lead === 'plan');
+  free(); post(form({ email: 'al@example.com', lead: 'alertas', carrera: 'bilbao', origen: '/x/' }));
+  check('alertas repetidas: el lead sigue siendo alertas y no se envía nada', subBy2('al@example.com').lead === 'alertas' && G.sent.length === nM);
+
+  // Alertas → plan
+  free(); post(form({ email: 'ap@example.com', lead: 'alertas' }));
+  updateObj_(T.SUBS, subBy2('ap@example.com')._row, { fecha_alta: daysAgo(10), secuencia: 2, fecha_secuencia: daysAgo(5) });
+  G.sent = []; free(); r = post(form({ email: 'ap@example.com', lead: 'plan' }));
+  const ap = subBy2('ap@example.com');
+  check('de alertas a plan: envía el PDF, cuenta 1 email, responde con el plan y la secuencia empieza de cero desde ese momento',
+    r.ok && /\.pdf$/.test(r.plan) && G.sent.length === 1 && /plan de 16 semanas/.test(G.sent[0].subject) && ap.lead === 'plan' && Number(ap.emails_confirmacion) === 1 && recent(ap.fecha_alta) && Number(ap.secuencia) === 0 && ap.fecha_secuencia === '', JSON.stringify(ap));
+  free(); post(form({ email: 'ap@example.com', lead: 'alertas' }));
+  check('el lead no baja de plan a alertas', subBy2('ap@example.com').lead === 'plan');
+
+  // Baja → re-alta como alertas
+  free(); post(form({ email: 'ba@example.com' }));
+  const baTok = subBy2('ba@example.com').token;
+  post({ action: 'unsub', token: baTok });
+  G.sent = []; free(); r = post(form({ email: 'ba@example.com', lead: 'alertas', intereses: ['simulacros'] }));
+  const ba = subBy2('ba@example.com');
+  check('baja y vuelta como alertas: Confirmado, lead alertas, token nuevo, intereses nuevos, 0 emails del plan y sin envío',
+    r.ok && !('plan' in r) && ba.estado === 'Confirmado' && ba.lead === 'alertas' && ba.token !== baTok && ba.intereses === 'simulacros' && Number(ba.emails_confirmacion) === 0 && Number(ba.secuencia) === 0 && G.sent.length === 0, JSON.stringify(ba));
+  retryPlanEmails_();
+  check('el reintento diario del plan no le manda el PDF a quien volvió solo como alertas', G.sent.length === 0);
+
+  // Re-consentimiento
+  free(); post(form({ email: 'v3@example.com' }));
+  updateObj_(T.SUBS, subBy2('v3@example.com')._row, { consentimiento: '2026-10-v3', fecha_confirmacion: daysAgo(30) });
+  free(); post(form({ email: 'v3@example.com', lead: 'alertas' }));
+  const v3 = subBy2('v3@example.com');
+  check('un Confirmado con una versión antigua del texto actualiza consentimiento y fecha_confirmacion al repetir el alta', v3.consentimiento === '2026-10-v4' && recent(v3.fecha_confirmacion), JSON.stringify(v3));
+  const day5 = daysAgo(5);
+  updateObj_(T.SUBS, v3._row, { fecha_confirmacion: day5 });
+  free(); post(form({ email: 'v3@example.com' }));
+  check('con la misma versión no se toca la fecha de consentimiento', +subBy2('v3@example.com').fecha_confirmacion === +day5);
+
+  // Antiabuso por tipo de alta
+  G.sent = []; free(); post(form({ email: 'dd@example.com', lead: 'alertas' }));
+  r = post(form({ email: 'dd@example.com', lead: 'alertas' }));
+  check('doble alta de alertas en menos de 1 min: ok, sin plan ni email y una sola fila', r.ok === true && !('plan' in r) && G.sent.length === 0 && subs().filter(s => s.email === 'dd@example.com').length === 1, JSON.stringify(r));
+  free(); post(form({ email: 'tp@example.com', lead: 'alertas' }));
+  r = post(form({ email: 'tp@example.com', lead: 'plan' }));
+  check('pedir el plan justo después de apuntarse a las alertas no queda bloqueado: envía el PDF', r.ok === true && /\.pdf$/.test(r.plan) && G.sent.length === 1 && G.sent[0].to === 'tp@example.com' && subBy2('tp@example.com').lead === 'plan', JSON.stringify(r));
+  r = post(form({ email: 'tp@example.com', lead: 'plan' }));
+  check('un segundo "plan" en menos de 1 min sí se frena (no repite el email) y sigue dando el enlace', /\.pdf$/.test(r.plan) && G.sent.length === 1);
+
+  // Hoja de una versión anterior, sin ensureSchema_ previo
+  G.reset();
+  const old2 = SpreadsheetApp.getActive().insertSheet('Suscriptores');
+  old2.appendRow(COLS['Suscriptores'].slice(0, 13));
+  old2.appendRow(['x1', daysAgo(3), 'vieja2@example.com', 'sevilla', 'malaga', '/', 'Confirmado', 'SI', daysAgo(3), 'v3', '', 'c'.repeat(32), 1]);
+  r = post(form({ email: 'nueva@example.com', lead: 'alertas', intereses: ['simulacros'] }));
+  check('hoja de 13 columnas + alta de alertas sin ensureSchema_ previo: añade las columnas, guarda lead e intereses, sin email, y no pierde la fila vieja',
+    r.ok && old2.rows[0].slice(13).join() === 'secuencia,fecha_secuencia,intereses,lead' && subBy2('nueva@example.com').lead === 'alertas' && subBy2('nueva@example.com').intereses === 'simulacros' && G.sent.length === 0 && subs().length === 2 && subBy2('vieja2@example.com').token === 'c'.repeat(32), JSON.stringify(old2.rows[0]));
+  free(); post(form({ email: 'vieja2@example.com', lead: 'alertas', intereses: ['gimnasios'] }));
+  const v2 = subBy2('vieja2@example.com');
+  check('alertas sobre una fila antigua (lead vacío = plan): queda como plan, guarda los intereses y re-consiente con el texto v4', v2.lead === 'plan' && v2.intereses === 'gimnasios' && v2.consentimiento === '2026-10-v4' && G.sent.length === 0, JSON.stringify(v2));
+
+  G.reset(); setup();
+  const shS = G.sheets['Suscriptores'], shC = G.sheets['Config'];
+  const sig = () => JSON.stringify([shS.rows[0], shC.rows.length, G.sheets['Campañas'].rows[0].length]);
+  const sig0 = sig(); ensureSchema_(); ensureSchema_();
+  check('ensureSchema_ es idempotente: no duplica columnas ni ajustes', sig() === sig0);
+
+  // Reintento del plan y secuencia: solo para quien pidió el plan
+  G.reset(); setup();
+  [['rp_plan', 'plan'], ['rp_vacio', ''], ['rp_alertas', 'alertas'], ['rp_raro', 'premium'], ['rp_mayus', ' Plan ']].forEach(([e, l]) => seqSub(e + '@example.com', { emails_confirmacion: 0, lead: l }));
+  G.sent = []; retryPlanEmails_();
+  check('reintento del plan: solo a lead plan y lead vacío (nunca a alertas ni a valores raros)', G.sent.map(m => m.to.split('@')[0]).sort().join() === 'rp_mayus,rp_plan,rp_vacio', G.sent.map(m => m.to).join());
+
+  G.reset(); setup();
+  updateObj_(T.CFG, desdeRow(), { valor: daysAgo(40) });
+  [['sq_plan', 'plan'], ['sq_vacio', ''], ['sq_alertas', 'alertas'], ['sq_raro', 'premium']].forEach(([e, l]) => seqSub(e + '@example.com', { fecha_alta: daysAgo(3), lead: l }));
+  check('secuencia: solo a lead plan y lead vacío, aunque quien es de alertas tenga emails_confirmacion = 1', seqRun() === 'sq_plan,sq_vacio', G.sent.map(m => m.to).join());
+
+  // Campañas mensuales: sí llegan a las alertas
+  G.reset(); setup();
+  free(); post(form({ email: 'ca@example.com', lead: 'alertas' }));
+  const campA = table_(T.CAMP).rows[0];
+  updateObj_(T.CAMP, campA._row, { estado: 'Programada', fecha_envio: daysAgo(1) });
+  G.sent = []; runDailyJob();
+  const campMail = G.sent[0];
+  check('las campañas del mes sí llegan a un Confirmado de alertas con marketing SI (y es lo único que recibe)', G.sent.length === 1 && campMail.to === 'ca@example.com' && campMail.subject === campA.asunto && table_(T.CAMP).rows[0].estado === 'Enviada', G.sent.map(m => m.subject).join());
+  const campReason = (campMail.htmlBody.match(/Recibes este email porque[^<]*/) || [''])[0];
+  check('el pie de la campaña habla de comunicaciones informativas y comerciales de Ritmo Híbrido y centros colaboradores, sin mencionar el plan', /comunicaciones informativas y comerciales/.test(campReason) && /centros colaboradores/.test(campReason) && !/plan/i.test(campReason), campReason);
+  const seqReason = (sequenceEmail_(1, { ciudad: 'sevilla', token: 'a'.repeat(32) }).html.match(/Recibes este email porque[^<]*/) || [''])[0];
+  check('el pie de la secuencia usa la misma terminología (comunicaciones informativas y comerciales)', /pediste el plan de 16 semanas/.test(seqReason) && /comunicaciones informativas y comerciales/.test(seqReason), seqReason);
+
+  // Panel: el embudo y el sistema cuentan el plan por separado de las alertas
+  G.reset(); setup();
+  free(); post(form({ email: 'e1@example.com' }));
+  free(); post(form({ email: 'e2@example.com', lead: 'plan', carrera: 'madrid' }));
+  free(); post(form({ email: 'e3@example.com', lead: 'alertas' }));
+  free(); post(form({ email: 'e4@example.com', lead: 'alertas' }));
+  post({ action: 'unsub', token: subBy2('e4@example.com').token });
+  seqSub('e5@example.com', { lead: '' });
+  const stL = post({ action: 'stats', password: G.props.PANEL_PASSWORD }).stats;
+  check('embudo: "Altas (planes pedidos)" solo cuenta el plan (2 altas + 1 fila antigua) y "Siguen suscritos" a sus activos',
+    stL.embudo[0].label === 'Altas (planes pedidos)' && stL.embudo[0].value === 3 && stL.embudo[1].value === 3, JSON.stringify(stL.embudo.slice(0, 2)));
+  check('panel: porLead separa plan y alertas (registros y activos)', JSON.stringify(stL.porLead) === JSON.stringify({ plan: { registros: 3, activos: 3 }, alertas: { registros: 2, activos: 1 } }), JSON.stringify(stL.porLead));
+  check('panel: el KPI de activos sigue contando todos los Confirmados y las carreras solo los del plan', stL.kpis.activos.value === 4 && stL.carreras.reduce((t, x) => t + x.activos, 0) === 3, JSON.stringify([stL.kpis.activos, stL.carreras]));
+  seqSub('e6@example.com', { lead: 'plan', emails_confirmacion: 0 });
+  check('sistema: sinEmailPlan cuenta a quien pidió el plan y no recibió el email, pero no a las altas de alertas', post({ action: 'stats', password: G.props.PANEL_PASSWORD }).stats.sistema.sinEmailPlan === 1);
+
+  // Anti-deriva: el texto de consentimiento de la web lleva la misma versión que el backend (solo si se sirve la raíz del repo)
+  try {
+    const pages = await Promise.all(['../../index.html', '../../plan/index.html'].map(u => fetch(u)));
+    if (pages.every(p => p.ok)) {
+      const vers = (await Promise.all(pages.map(p => p.text()))).map(t => (t.match(/<p class="fine" data-consent="([^"]+)"/) || [])[1]);
+      check('anti-deriva: index.html y plan/index.html llevan data-consent igual a CONSENT_VERSION', vers.every(v => v === CONSENT_VERSION), JSON.stringify(vers));
+    }
+  } catch (e) { /* abierto sin servir la raíz del repo: no se comprueba */ }
 }
 
 run().then(() => {
