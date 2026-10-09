@@ -135,6 +135,13 @@ function buildStats_(d, nowDate) {
     };
   }).sort((a, b) => String(b.fecha.split('/').reverse().join('')).localeCompare(String(a.fecha.split('/').reverse().join(''))));
 
+  const seqSends = d.sends.filter(r => String(r.campana).indexOf('secuencia-') === 0);
+  const secuencia = SEQUENCE.map(x => ({
+    paso: x.paso, dia: x.dia, tema: x.tema,
+    enviados: seqSends.filter(r => r.campana === 'secuencia-' + x.paso && r.resultado === 'OK').length,
+    errores: seqSends.filter(r => r.campana === 'secuencia-' + x.paso && r.resultado !== 'OK').length,
+  }));
+
   const planned = camps.filter(c => c.estado !== 'Enviada' && toDate_(c.fecha_envio))
     .sort((a, b) => toDate_(a.fecha_envio) - toDate_(b.fecha_envio))
     .map(c => ({ fecha: Utilities.formatDate(toDate_(c.fecha_envio), TZ, 'dd/MM/yyyy'), asunto: c.asunto, estado: c.estado, publi: String(c.publi_activa).toUpperCase() === 'SI' }));
@@ -158,7 +165,7 @@ function buildStats_(d, nowDate) {
 
   return {
     generado: nowDate.toISOString(),
-    kpis, semanas, embudo, provincias, ciudades: provincias, carreras, origenes, emails, // `ciudades`: copia para el panel antiguo
+    kpis, semanas, embudo, provincias, ciudades: provincias, carreras, origenes, emails, secuencia, // `ciudades`: copia para el panel antiguo
     calendario: { proximas: planned, huecos },
     dinero: { meses, total: meses.reduce((t, m) => t + m.total, 0), cierresTotal: closed.length, comisionTotal: sum(closed) },
   };

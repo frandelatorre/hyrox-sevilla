@@ -25,7 +25,7 @@ const T = {
 
 const COLS = {
   'Suscriptores': ['id', 'fecha_alta', 'email', 'ciudad', 'carrera', 'origen', 'estado', 'marketing',
-    'fecha_confirmacion', 'consentimiento', 'fecha_baja', 'token', 'emails_confirmacion'],
+    'fecha_confirmacion', 'consentimiento', 'fecha_baja', 'token', 'emails_confirmacion', 'secuencia', 'fecha_secuencia'],
   'Contactos': ['id', 'fecha', 'email', 'nombre', 'telefono', 'ciudad', 'estado', 'centro', 'fecha_cierre', 'comision', 'notas'],
   'Campañas': ['id', 'mes', 'fecha_envio', 'asunto', 'titulo', 'cuerpo', 'publi_activa', 'publi_titulo', 'publi_texto',
     'publi_enlace', 'publi_boton', 'segmento_ciudad', 'estado', 'enviados', 'errores', 'fecha_fin', 'ingreso_publi'],
@@ -96,7 +96,28 @@ const CFG_DEFAULTS = [
   ['PLAN_URL', 'https://ritmohibrido.com/recursos/ritmo-hibrido-plan-16-semanas.pdf', 'PDF del plan de 16 semanas'],
   ['COMISION_CIERRE', '30', 'Comisión por defecto (€) al marcar un contacto como Cerrado'],
   ['CUOTA_RESERVA', '10', 'Emails diarios que nunca se gastan en campañas (confirmaciones, avisos)'],
+  ['SECUENCIA_ACTIVA', 'SI', 'SI = cada alta recibe los 4 emails de bienvenida (días 2, 7, 14 y 28). NO = pausada'],
 ];
+
+// Carreras del formulario (mismo `id` y fecha que RACES en assets/js/main.js: si cambias una, cambia la otra).
+// `page` es la página de la carrera en la web (alojamiento y logística); vacío si no tiene.
+const RACES = {
+  'valencia': { city: 'Valencia', start: '2026-10-15', label: '15–18 oct 2026', page: '' },
+  'barcelona': { city: 'Barcelona', start: '2026-11-11', label: '11–15 nov 2026', page: '/carreras/barcelona-2026/' },
+  'bilbao': { city: 'Bilbao', start: '2027-02-06', label: '6–7 feb 2027', page: '/carreras/bilbao-2027/' },
+  'madrid': { city: 'Madrid', start: '2027-03-17', label: '17–21 mar 2027', page: '/carreras/madrid-2027/' },
+  'malaga': { city: 'Málaga', start: '2027-04-14', label: '14–18 abr 2027', page: '/carreras/malaga-2027/' },
+};
+
+// Secuencia de bienvenida: emails automáticos tras el plan, para no dejar semanas de silencio hasta la campaña del mes.
+// `dia` = días desde el alta. Los textos están en Mail.gs (sequenceEmail_).
+const SEQUENCE = [
+  { paso: 1, dia: 2, tema: 'Primera semana: cómo empezar sin quemarse' },
+  { paso: 2, dia: 7, tema: 'Estaciones con material real → centro colaborador o gimnasios de su provincia' },
+  { paso: 3, dia: 14, tema: 'Su carrera: inicio del plan, alojamiento y logística (o elegir carrera)' },
+  { paso: 4, dia: 28, tema: 'Semana 4: test de 1 km, ritmo de carrera y simulacros' },
+];
+const SEQ_MIN_GAP_DAYS = 3; // días mínimos entre dos emails de la secuencia, o entre una campaña y la secuencia
 
 // ---------------------------------------------------------------- Entrada web
 
@@ -161,7 +182,7 @@ function handleSignup_(req) {
     let sub, row;
 
     if (!found) {
-      sub = Object.assign({ id: shortId_(), fecha_alta: now, email, token: token_(), emails_confirmacion: 0 }, data, consent);
+      sub = Object.assign({ id: shortId_(), fecha_alta: now, email, token: token_(), emails_confirmacion: 0, secuencia: 0 }, data, consent);
       appendObj_(T.SUBS, sub);
       row = lastRow_(T.SUBS);
     } else {
@@ -169,7 +190,8 @@ function handleSignup_(req) {
       const patch = Object.assign({}, data);
       if (found.estado !== 'Confirmado') Object.assign(patch, consent, { fecha_alta: now });
       if (found.estado === 'Baja' || !found.token) patch.token = token_();
-      if (found.estado === 'Baja') patch.emails_confirmacion = 0; // petición nueva: vuelve a poder recibir el plan
+      // Petición nueva tras una baja: vuelve a poder recibir el plan y la secuencia empieza de cero
+      if (found.estado === 'Baja') Object.assign(patch, { emails_confirmacion: 0, secuencia: 0, fecha_secuencia: '' });
       updateObj_(T.SUBS, found._row, patch);
       sub = Object.assign(found, patch);
       row = found._row;
@@ -237,11 +259,16 @@ function handleUnsub_(req) {
 
 // -------------------------------------------------------- Envío de campañas
 
-/** Se ejecuta cada día (disparador). Reenvía los planes que no salieron (sin cuota) y envía la campaña que toque. */
+/**
+ * Se ejecuta cada día (disparador). Reenvía los planes que no salieron (sin cuota), envía los emails de la secuencia
+ * de bienvenida que toquen (van primero porque dependen del día exacto) y la campaña que toque.
+ */
 function runDailyJob() {
   const t0 = Date.now();
   try {
-    retryPlanEmails_();
+    ensureSchema_();
+    const retried = retryPlanEmails_();
+    sendSequence_(t0, retried);
     sendDueCampaign_(t0);
     setCfg_('ULTIMA_EJECUCION', new Date());
   } catch (err) {
@@ -249,12 +276,15 @@ function runDailyJob() {
   }
 }
 
+/** Reenvía el plan a quien no lo recibió (sin cuota). Devuelve { email: true } de los reintentados. */
 function retryPlanEmails_() {
   const limit = Date.now() - 7 * 864e5;
+  const out = {};
   table_(T.SUBS).rows
     .filter(s => s.estado === 'Confirmado' && !Number(s.emails_confirmacion || 0) && s.token && +toDate_(s.fecha_alta) > limit)
     .slice(0, 20)
-    .forEach(s => sendPlan_(s, s._row));
+    .forEach(s => { out[s.email] = true; sendPlan_(s, s._row); });
+  return out;
 }
 
 function sendDueCampaign_(t0) {
@@ -279,7 +309,10 @@ function sendDueCampaign_(t0) {
     else fails[r.email] = (fails[r.email] || 0) + 1;
   });
 
-  const pending = recipients.filter(s => !done[s.email] && (fails[s.email] || 0) < 2);
+  // Quien ha recibido hoy un email de la secuencia recibe la campaña otro día (sigue En curso): nunca dos emails el mismo día
+  const today = Utilities.formatDate(now, TZ, 'yyyy-MM-dd');
+  const seqToday = s => !!toDate_(s.fecha_secuencia) && Utilities.formatDate(toDate_(s.fecha_secuencia), TZ, 'yyyy-MM-dd') === today;
+  const pending = recipients.filter(s => !done[s.email] && (fails[s.email] || 0) < 2 && !seqToday(s));
   let budget = canSendBudget_();
   const log = [];
   let ok = 0, ko = 0;
@@ -318,12 +351,108 @@ function sendDueCampaign_(t0) {
   });
 }
 
+// ------------------------------------------------- Secuencia de bienvenida
+
+/**
+ * Envía a cada suscriptor activo el siguiente email de SEQUENCE que le toque por los días desde su alta.
+ * - Si se le han pasado varios (p. ej. unos días sin cuota), recibe solo el más reciente y los anteriores se saltan:
+ *   nunca le llega el email del día 2 en la semana 4.
+ * - Entre dos emails de la secuencia, o tras una campaña, pasan al menos SEQ_MIN_GAP_DAYS días.
+ * - Solo para altas desde SECUENCIA_DESDE (se fija sola la primera vez, una semana atrás): la lista antigua no la recibe.
+ * - Cada envío queda en «Envíos» como `secuencia-N` y en el suscriptor (`secuencia` = último paso, `fecha_secuencia`).
+ */
+function sendSequence_(t0, skip) {
+  const c = cfg_();
+  if (String(c.SECUENCIA_ACTIVA).toUpperCase() !== 'SI') return;
+  const since = toDate_(c.SECUENCIA_DESDE);
+  if (!since) return;
+  const now = new Date();
+  const gap = SEQ_MIN_GAP_DAYS * 864e5;
+
+  const recentCamp = {};
+  table_(T.SENDS).rows.forEach(r => {
+    const d = toDate_(r.fecha);
+    if (r.resultado === 'OK' && d && now - d < gap && String(r.campana).indexOf('secuencia-') !== 0) recentCamp[r.email] = true;
+  });
+
+  const due = [];
+  table_(T.SUBS).rows.forEach(s => {
+    const alta = toDate_(s.fecha_alta);
+    if (s.estado !== 'Confirmado' || s.marketing !== 'SI' || !s.token || !alta || alta < since) return;
+    if (!Number(s.emails_confirmacion || 0)) return; // antes tiene que haberle llegado el plan
+    const last = toDate_(s.fecha_secuencia);
+    if ((last && now - last < gap) || recentCamp[s.email] || (skip && skip[s.email])) return; // `skip`: hoy ya le llegó el plan
+    const days = Math.floor((now - alta) / 864e5);
+    const step = SEQUENCE.filter(x => x.paso > Number(s.secuencia || 0) && x.dia <= days).pop();
+    if (step) due.push({ s, step });
+  });
+  if (!due.length) return;
+
+  const sendsSh = sheet_(T.SENDS);
+  const log = [];
+  let budget = canSendBudget_();
+  for (const { s, step } of due) {
+    if (budget <= 0 || Date.now() - t0 > 2.5 * 60 * 1000) break;
+    const id = 'secuencia-' + step.paso;
+    let ok = true;
+    try {
+      const m = sequenceEmail_(step.paso, s);
+      mail_(s.email, m.subject, m.html);
+    } catch (err) {
+      ok = false;
+      logError_(id, err);
+    }
+    // Un fallo no se reintenta: se da el paso por hecho para no insistir cada día con una dirección que no funciona
+    updateObj_(T.SUBS, s._row, { secuencia: step.paso, fecha_secuencia: new Date() });
+    log.push([new Date(), id, s.email, ok ? 'OK' : 'ERROR']);
+    budget--;
+  }
+  if (log.length) sendsSh.getRange(sendsSh.getLastRow() + 1, 1, log.length, 4).setValues(log);
+}
+
+/**
+ * Pone al día una hoja creada con una versión anterior: añade al final las columnas nuevas de COLS y los ajustes nuevos
+ * de CFG_DEFAULTS, sin tocar los datos. La primera vez fija SECUENCIA_DESDE. Lo llaman setup y runDailyJob.
+ */
+function ensureSchema_() {
+  Object.keys(COLS).forEach(name => {
+    const sh = sheet_(name);
+    if (sh.getLastRow() === 0) return;
+    const head = headOf_(sh);
+    const missing = COLS[name].filter(col => head.indexOf(col) < 0);
+    if (missing.length) {
+      sh.getRange(1, head.length + 1, 1, missing.length).setValues([missing])
+        .setFontWeight('bold').setBackground('#0E1013').setFontColor('#FFFFFF');
+    }
+  });
+  const cfg = sheet_(T.CFG);
+  if (cfg.getLastRow() === 0) return;
+  const keys = table_(T.CFG).rows.map(r => r.clave);
+  CFG_DEFAULTS.filter(([k]) => keys.indexOf(k) < 0).forEach(row => cfg.appendRow(row));
+  if (keys.indexOf('SECUENCIA_DESDE') < 0) {
+    cfg.appendRow(['SECUENCIA_DESDE', new Date(Date.now() - 7 * 864e5),
+      'Solo reciben la secuencia de bienvenida las altas desde esta fecha (se fijó sola al activarla)']);
+  }
+}
+
+/** Menú: manda a tu cuenta los emails de la secuencia con datos de ejemplo (provincia de Sevilla y carrera de Málaga). */
+function sendTestSequence() {
+  const me = Session.getEffectiveUser().getEmail();
+  const sub = { email: me, token: '0'.repeat(32), ciudad: 'sevilla', carrera: 'malaga' };
+  SEQUENCE.forEach(x => {
+    const m = sequenceEmail_(x.paso, sub);
+    mail_(me, '[PRUEBA ' + x.paso + '/' + SEQUENCE.length + '] ' + m.subject, m.html);
+  });
+  Logger.log('Secuencia de prueba enviada a ' + me);
+}
+
 // -------------------------------------------------------- Menú y utilidades
 
 function onOpen() {
   SpreadsheetApp.getUi().createMenu('Ritmo Híbrido')
     .addItem('Configurar (primera vez)', 'setup')
     .addItem('Enviar email de prueba a mi cuenta', 'sendTestCampaign')
+    .addItem('Enviarme la secuencia de bienvenida (prueba)', 'sendTestSequence')
     .addItem('Ejecutar el envío ahora', 'runDailyJob')
     .addToUi();
 }
@@ -372,6 +501,7 @@ function setup() {
     cfg.setFrozenRows(1);
     cfg.setColumnWidth(1, 190); cfg.setColumnWidth(2, 420); cfg.setColumnWidth(3, 520);
   }
+  ensureSchema_();
 
   const list = (sheetName, col, values) => {
     const rule = SpreadsheetApp.newDataValidation().requireValueInList(values, true).setAllowInvalid(false).build();

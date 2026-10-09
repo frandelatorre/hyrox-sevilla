@@ -67,6 +67,12 @@
         { id: 'a2', mes: '2026-11', asunto: 'Calendario HYROX y consejos de noviembre', estado: 'Programada', publi: false, segmento: 'Todas', fecha: next(1), destinatarios: 121, enviados: 0, errores: 0, pendientes: 121 },
         { id: 'a3', mes: '2026-10', asunto: 'Bienvenida: así será Ritmo Híbrido', estado: 'Enviada', publi: true, segmento: 'Sevilla, Cádiz, Huelva', fecha: '05/10/2026', destinatarios: 84, enviados: 84, errores: 0, pendientes: 0 },
       ],
+      secuencia: [
+        { paso: 1, dia: 2, tema: 'Primera semana: cómo empezar sin quemarse', enviados: 41, errores: 0 },
+        { paso: 2, dia: 7, tema: 'Estaciones con material real → centro colaborador o gimnasios de su provincia', enviados: 33, errores: 1 },
+        { paso: 3, dia: 14, tema: 'Su carrera: inicio del plan, alojamiento y logística (o elegir carrera)', enviados: 24, errores: 0 },
+        { paso: 4, dia: 28, tema: 'Semana 4: test de 1 km, ritmo de carrera y simulacros', enviados: 9, errores: 0 },
+      ],
       calendario: {
         proximas: [
           { fecha: next(1), asunto: 'Calendario HYROX y consejos de noviembre', estado: 'Programada', publi: false },
@@ -152,7 +158,9 @@
     emails(s) {
       return '<h2>Emails</h2><p class="sub">Campañas de email. Se editan en la hoja «Campañas» de Google Sheets.</p>' +
         table('Campañas', ['Fecha', 'Asunto', 'Estado', 'Segmento', 'Publi', 'Destinatarios', 'Enviados', 'Pendientes', 'Errores'],
-          s.emails.map(e => [e.fecha, e.asunto, { html: stateChip(e.estado) }, e.segmento, e.publi ? 'Sí' : 'No', e.destinatarios, e.enviados, e.pendientes, e.errores]), { numeric: [5, 6, 7, 8] });
+          s.emails.map(e => [e.fecha, e.asunto, { html: stateChip(e.estado) }, e.segmento, e.publi ? 'Sí' : 'No', e.destinatarios, e.enviados, e.pendientes, e.errores]), { numeric: [5, 6, 7, 8] }) +
+        (s.secuencia ? table('Secuencia de bienvenida (automática)', ['Email', 'Día', 'Tema', 'Enviados', 'Errores'],
+          s.secuencia.map(x => [x.paso, x.dia, x.tema, x.enviados, x.errores]), { numeric: [0, 1, 3, 4] }) : '');
     },
 
     comparativas(s) {

@@ -261,6 +261,99 @@ async function run() {
   const bz = st.provincias.find(p => p.provincia === 'Bizkaia');
   check('panel: "Por provincia" junta bilbao y bizkaia en una sola fila (2) y usa nombres bonitos', st.provincias.length === 6 && bz && bz.registros === 2 && st.provincias.find(p => p.provincia === 'Sevilla').registros === 2, JSON.stringify(st.provincias));
   check('panel: sigue incluyendo `ciudades` para el panel antiguo', Array.isArray(st.ciudades) && st.ciudades[0].ciudad === st.provincias[0].provincia);
+
+  // --- Secuencia de bienvenida
+  G.reset(); setup();
+  const cfgNow = cfg_();
+  check('setup añade SECUENCIA_ACTIVA = SI y fija SECUENCIA_DESDE una semana atrás', String(cfgNow.SECUENCIA_ACTIVA) === 'SI' && toDate_(cfgNow.SECUENCIA_DESDE) && Math.abs(Date.now() - 7 * 864e5 - toDate_(cfgNow.SECUENCIA_DESDE)) < 6e4);
+  check('la hoja Suscriptores tiene las columnas secuencia y fecha_secuencia', ['secuencia', 'fecha_secuencia'].every(k => G.sheets['Suscriptores'].rows[0].includes(k)));
+  const daysAgo = n => new Date(Date.now() - n * 864e5 - 36e5);
+  const seqSub = (email, o = {}) => appendObj_(T.SUBS, Object.assign({ id: shortId_(), fecha_alta: new Date(), email, ciudad: 'sevilla', carrera: 'malaga', origen: '/', estado: 'Confirmado', marketing: 'SI', fecha_confirmacion: new Date(), token: token_(), emails_confirmacion: 1, secuencia: 0 }, o));
+  const subBy = e => subs().find(s => s.email === e);
+  const seqRun = () => { G.sent = []; G.quota = 100; runDailyJob(); return G.sent.map(m => m.to.split('@')[0]).sort().join(','); };
+
+  seqSub('hoy@example.com');
+  seqSub('d2@example.com', { fecha_alta: daysAgo(2) });
+  seqSub('d30@example.com', { fecha_alta: daysAgo(6), secuencia: 0 });
+  seqSub('baja@example.com', { fecha_alta: daysAgo(3), estado: 'Baja', marketing: 'NO' });
+  seqSub('nomk@example.com', { fecha_alta: daysAgo(3), marketing: 'NO' });
+  seqSub('sinplan@example.com', { fecha_alta: daysAgo(3), emails_confirmacion: 0 });
+  seqSub('antigua@example.com', { fecha_alta: daysAgo(9) });
+  check('día 2: recibe el email 1; ni el alta de hoy, ni bajas, ni sin consentimiento, ni altas anteriores a SECUENCIA_DESDE', seqRun() === 'd2,d30,sinplan', G.sent.map(m => m.to).join());
+  check('a quien se le reintenta hoy el plan solo le llega el plan (la secuencia espera)', G.sent.filter(m => m.to === 'sinplan@example.com').length === 1 && /plan de 16 semanas/.test(G.sent.find(m => m.to === 'sinplan@example.com').subject) && !subBy('sinplan@example.com').secuencia);
+  const m1 = G.sent.find(m => m.to === 'd2@example.com');
+  check('el email 1 tiene asunto, enlace de baja personal, el PDF y la fecha de inicio para Málaga',
+    /primera semana/i.test(m1.subject) && m1.htmlBody.includes('/baja/?t=' + subBy('d2@example.com').token) && m1.htmlBody.includes('.pdf') && m1.htmlBody.includes('Málaga') && m1.htmlBody.includes('lunes 21 de diciembre'));
+  check('queda anotado en el suscriptor y en Envíos como secuencia-1', subBy('d2@example.com').secuencia === 1 && toDate_(subBy('d2@example.com').fecha_secuencia) && table_(T.SENDS).rows.filter(r => r.campana === 'secuencia-1' && r.resultado === 'OK').length === 2);
+  check('al día siguiente: no repite ni adelanta el siguiente, y el del plan reintentado recibe ahora el email 1', seqRun() === 'sinplan' && /primera semana/i.test(G.sent[0].subject), G.sent.map(m => m.to).join());
+
+  // Avanza en el tiempo: alta hace 8 días y último email hace 4 → toca el 2 (SECUENCIA_DESDE se retrasa igual, sin incluir a `antigua`)
+  const desdeRow = () => table_(T.CFG).rows.find(r => r.clave === 'SECUENCIA_DESDE')._row;
+  updateObj_(T.CFG, desdeRow(), { valor: new Date(Date.now() - 8.5 * 864e5) });
+  updateObj_(T.SUBS, subBy('d2@example.com')._row, { fecha_alta: daysAgo(8), fecha_secuencia: daysAgo(4) });
+  updateObj_(T.SUBS, subBy('d30@example.com')._row, { fecha_alta: daysAgo(8), fecha_secuencia: daysAgo(1) });
+  check('día 8 con el anterior hace 4 días: recibe el email 2; con el anterior hace 1 día espera (mínimo 3 días entre emails)', seqRun() === 'd2', G.sent.map(m => m.to).join());
+  const m2 = G.sent[0];
+  check('email 2 en Sevilla: recuadro del centro colaborador etiquetado, con WhatsApp que dice que viene del email', m2.htmlBody.includes('Centro colaborador') && m2.htmlBody.includes('Good Training') && m2.htmlBody.includes('wa.me/34632340674') && m2.htmlBody.includes(encodeURIComponent('por el email de Ritmo Híbrido')));
+  check('ningún email de la secuencia lleva enlaces de Amazon', ![m2].concat([1, 2, 3, 4].map(p => ({ htmlBody: sequenceEmail_(p, { ciudad: 'madrid', carrera: 'madrid', token: 'x' }).html }))).some(m => /amazon\./i.test(m.htmlBody)));
+
+  // Saltos: si se han pasado varios pasos, solo el más reciente
+  seqSub('salto@example.com', { fecha_alta: daysAgo(29) });
+  updateObj_(T.CFG, desdeRow(), { valor: daysAgo(40) });
+  check('alta hace 29 días sin ningún email: recibe solo el 4 (no el del día 2 en la semana 4)', seqRun() === 'antigua,salto' && subBy('salto@example.com').secuencia === 4 && /Semana 4/.test(G.sent.find(m => m.to === 'salto@example.com').subject), G.sent.map(m => m.to + ':' + m.subject).join(' | '));
+  updateObj_(T.SUBS, subBy('salto@example.com')._row, { fecha_alta: daysAgo(90), fecha_secuencia: daysAgo(30) });
+  check('tras el email 4 ya no recibe más de la secuencia', !seqRun().split(',').includes('salto'));
+
+  // Personalización
+  const seqHtml = (p, o) => sequenceEmail_(p, Object.assign({ token: 'a'.repeat(32) }, o)).html;
+  check('email 2 en Madrid: botón a /gimnasios/madrid/ y sin recuadro de centro colaborador', seqHtml(2, { ciudad: 'madrid' }).includes('/gimnasios/madrid/') && !seqHtml(2, { ciudad: 'madrid' }).includes('Centro colaborador'));
+  check('email 2 en una provincia sin página (Zaragoza): botón al directorio general', seqHtml(2, { ciudad: 'zaragoza' }).includes('/gimnasios/"') && !seqHtml(2, { ciudad: 'zaragoza' }).includes('/gimnasios/zaragoza/'));
+  const s3 = sequenceEmail_(3, { ciudad: 'madrid', carrera: 'malaga', token: 'a'.repeat(32) });
+  check('email 3 con carrera: asunto con la ciudad y botón a su guía de alojamiento y logística', /^Málaga: tu carrera en \d+ semanas$/.test(s3.subject) && s3.html.includes('/carreras/malaga-2027/'), s3.subject);
+  check('email 3 sin carrera o con una desconocida: invita a elegirla (calendario y simulacros)', ['ninguna', '', 'valencia-xx'].every(k => /tienes carrera/.test(sequenceEmail_(3, { ciudad: 'madrid', carrera: k, token: 'x' }).subject)) && seqHtml(3, { carrera: 'ninguna' }).includes('/simulacros/'));
+  check('email 4: test de 1 km, ritmo de carrera y simulacros', /Semana 4/.test(sequenceEmail_(4, { ciudad: 'cadiz', token: 'x' }).subject) && seqHtml(4, { ciudad: 'cadiz' }).includes('1 km') && seqHtml(4, { ciudad: 'cadiz' }).includes('/simulacros/'));
+  const ri = raceInfo_({ carrera: 'malaga' });
+  check('el plan de Málaga (14 abr 2027) empieza el lunes 21 de diciembre de 2026', ri && ri.start.toISOString().slice(0, 10) === '2026-12-21' && longDay_(ri.start) === 'lunes 21 de diciembre', ri && ri.start.toISOString());
+
+  // Convivencia con la campaña del mes
+  G.reset(); setup();
+  updateObj_(T.CFG, desdeRow(), { valor: daysAgo(40) });
+  seqSub('a@example.com', { fecha_alta: daysAgo(2) });
+  seqSub('b@example.com', { fecha_alta: daysAgo(20), secuencia: 4, fecha_secuencia: daysAgo(10) });
+  const cp = table_(T.CAMP).rows[0];
+  updateObj_(T.CAMP, cp._row, { estado: 'Programada', fecha_envio: daysAgo(1), segmento_ciudad: '' });
+  G.sent = []; runDailyJob();
+  check('el mismo día: quien recibe un email de la secuencia no recibe la campaña, y la campaña sigue En curso', G.sent.filter(m => m.to === 'a@example.com').length === 1 && G.sent.some(m => m.to === 'b@example.com') && table_(T.CAMP).rows[0].estado === 'En curso', G.sent.map(m => m.to + ':' + m.subject).join(' | '));
+  updateObj_(T.SUBS, subBy('a@example.com')._row, { fecha_secuencia: daysAgo(1) });
+  G.sent = []; runDailyJob();
+  check('al día siguiente recibe la campaña y la campaña termina', G.sent.length === 1 && G.sent[0].to === 'a@example.com' && G.sent[0].subject === cp.asunto && table_(T.CAMP).rows[0].estado === 'Enviada');
+  updateObj_(T.SUBS, subBy('a@example.com')._row, { fecha_alta: daysAgo(8), fecha_secuencia: daysAgo(5) });
+  check('quien recibió una campaña hace menos de 3 días espera al siguiente email de la secuencia', seqRun() === '');
+
+  // Pausa, re-alta y fallos
+  updateObj_(T.CFG, table_(T.CFG).rows.find(r => r.clave === 'SECUENCIA_ACTIVA')._row, { valor: 'NO' });
+  G.sheets['Envíos'].rows.length = 1;
+  check('SECUENCIA_ACTIVA = NO la pausa', seqRun() === '');
+  updateObj_(T.CFG, table_(T.CFG).rows.find(r => r.clave === 'SECUENCIA_ACTIVA')._row, { valor: 'SI' });
+  G.failFor = 'a@example.com'; seqRun(); G.failFor = null;
+  check('un envío que falla queda como ERROR, no se reintenta y se avisa en el Registro', subBy('a@example.com').secuencia === 2 && table_(T.SENDS).rows.some(r => r.campana === 'secuencia-2' && r.resultado === 'ERROR') && G.sheets['Registro'].rows.some(r => r[1] === 'secuencia-2'));
+  post({ action: 'unsub', token: subBy('a@example.com').token }); clearThrottle();
+  post(form({ email: 'a@example.com' }));
+  check('re-alta tras la baja: la secuencia vuelve a empezar', Number(subBy('a@example.com').secuencia) === 0 && subBy('a@example.com').fecha_secuencia === '');
+
+  const stS = post({ action: 'stats', password: G.props.PANEL_PASSWORD }).stats;
+  check('panel: resumen de la secuencia con enviados y errores por email', stS.secuencia.length === 4 && stS.secuencia[1].enviados === 0 && stS.secuencia[1].errores === 1, JSON.stringify(stS.secuencia));
+  G.sent = []; sendTestSequence();
+  check('menú: la prueba manda los 4 emails a tu cuenta', G.sent.length === 4 && G.sent.every(m => m.to === 'ritmo@example.com' && /^\[PRUEBA \d\/4\]/.test(m.subject)));
+
+  // Hoja antigua sin las columnas nuevas: se añaden solas sin tocar los datos
+  G.reset();
+  const old = SpreadsheetApp.getActive().insertSheet('Suscriptores');
+  old.appendRow(COLS['Suscriptores'].slice(0, 13)); old.appendRow(['x1', daysAgo(3), 'vieja@example.com', 'sevilla', 'malaga', '/', 'Confirmado', 'SI', daysAgo(3), 'v', '', 'c'.repeat(32), 1]);
+  const oldCfg = SpreadsheetApp.getActive().insertSheet('Config');
+  oldCfg.appendRow(['clave', 'valor', 'nota']); CFG_DEFAULTS.filter(([k]) => k.indexOf('SECUENCIA') < 0).forEach(r => oldCfg.appendRow(r));
+  runDailyJob();
+  check('hoja de una versión anterior: añade columnas y ajustes nuevos sin perder datos, y la secuencia funciona', old.rows[0].slice(13).join() === 'secuencia,fecha_secuencia' && old.rows[1][2] === 'vieja@example.com' && cfg_().SECUENCIA_ACTIVA === 'SI' && G.sent.some(m => m.to === 'vieja@example.com'), JSON.stringify(old.rows[0]));
 }
 
 run().then(() => {
