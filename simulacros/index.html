@@ -17,7 +17,7 @@
 <link rel="preload" href="../assets/fonts/barlow-400-normal-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="../assets/fonts/barlow-condensed-800-italic-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="../assets/fonts/fonts.css?v=9">
-<link rel="stylesheet" href="../assets/css/styles.css?v=13">
+<link rel="stylesheet" href="../assets/css/styles.css?v=14">
 </head>
 <body>
 <header class="site-header"><div class="wrap">
@@ -333,7 +333,7 @@
     </article>
   </div>
 
-  <p class="sim-empty" id="sin-eventos" hidden>Ahora mismo no hay simulacros próximos en la lista. ¿Organizas uno? <a class="link" href="#organizadores">Publícalo aquí</a>.</p>
+  <p class="sim-empty" id="sin-eventos" hidden>Ahora mismo no hay simulacros próximos en la lista. ¿Organizas uno? <a class="link" href="#publicar">Publícalo aquí</a>.</p>
 
   <p class="note">Los eventos de esta lista los organizan gimnasios, clubes, federaciones y empresas independientes: no son carreras de HYROX y Ritmo Híbrido no los organiza. «Formato HYROX» indica que la propia organización lo describe como basado en ese formato; «Híbrida», «DEKA» y «Hyatlón» tienen formatos propios. Comprueba fecha, plazas, precio y reglamento en la web de cada organizador antes de apuntarte. HYROX, DEKA y Hyatlón son marcas de sus titulares y se mencionan solo para identificar el formato.</p>
 </div></section>
@@ -365,7 +365,7 @@
       <div class="hp" aria-hidden="true" style="position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden"><label>No rellenar<input type="text" name="ritmo_extra" tabindex="-1" autocomplete="off" data-lpignore="true" data-1p-ignore></label></div>
       <p class="form-msg" role="alert" hidden></p>
       <button type="submit" class="btn" aria-describedby="avisos-aviso">Apuntarme a los avisos</button>
-      <p class="fine" data-consent="2026-10-v4" id="avisos-aviso">Al pulsar «Apuntarme a los avisos», aceptas que Ritmo Híbrido use tu email y tu provincia para avisarte por email de novedades de carreras, simulacros y gimnasios de tu provincia según los intereses que marques y, además, para enviarte comunicaciones informativas y comerciales por email (novedades, consejos, calendario y ofertas propias y de centros colaboradores, a los que no cedemos tus datos). Puedes retirar tu consentimiento y darte de baja con un clic desde cualquier mensaje. Responsable: Ritmo Híbrido (info@ritmohibrido.com). Más información y tus derechos en la <a href="../privacidad/">política de privacidad</a>.</p>
+      <p class="fine" data-consent="2026-10-v5-alertas" id="avisos-aviso">Al pulsar «Apuntarme a los avisos», aceptas que Ritmo Híbrido use tu email y tu provincia para avisarte por email de novedades de carreras, simulacros y gimnasios de tu provincia según los intereses que marques y, además, para enviarte comunicaciones informativas y comerciales por email (novedades, consejos, calendario y ofertas propias y de centros colaboradores, a los que no cedemos tus datos). Puedes retirar tu consentimiento y darte de baja con un clic desde cualquier mensaje. Responsable: Ritmo Híbrido (info@ritmohibrido.com). Más información y tus derechos en la <a href="../privacidad/">política de privacidad</a>.</p>
     </form>
   </div>
 </div></section>
@@ -377,7 +377,7 @@
       <span class="badge ghost">Gratis</span>
       <h3>Evento gratis</h3>
       <ul><li>Nombre del evento</li><li>Fecha</li><li>Lugar</li><li>Enlace a tu web o a la inscripción</li></ul>
-      <p class="price">0 €<small>Escríbenos y lo añadimos al listado.</small></p>
+      <p class="price">0 €<small>Propónlo <a class="link" href="#publicar">en el formulario</a>: lo revisamos y, si encaja, lo publicamos.</small></p>
     </div>
     <div class="card tier pro">
       <span class="badge">Destacado</span>
@@ -386,8 +386,66 @@
       <p class="price">49 € por evento<small>+ IVA · precio de lanzamiento. Se identifica como «Evento patrocinado».</small></p>
     </div>
   </div>
+  <form class="b2b" id="publicar" data-b2b="simulacro" method="post" aria-labelledby="publicar-titulo" novalidate>
+    <h3 class="b2b-title" id="publicar-titulo">¿Organizas un simulacro? <span>Publícalo</span></h3>
+    <p class="b2b-intro">Cuéntanos los datos básicos del evento. Lo revisamos y solo lo publicamos cuando podamos confirmarlo en la web del organizador. Los campos con asterisco (*) son obligatorios.</p>
+    <noscript><p class="b2b-intro">Este formulario necesita JavaScript. Si no puedes activarlo, escríbenos a info@ritmohibrido.com.</p></noscript>
+    <div class="b2b-grid">
+      <div class="b2b-f b2b-wide">
+        <label for="publicar-nombre">Nombre del evento <span class="req" aria-hidden="true">*</span></label>
+        <input type="text" id="publicar-nombre" name="nombre" required maxlength="120" autocomplete="off" data-err="Escribe el nombre del evento.">
+      </div>
+      <div class="b2b-f">
+        <label for="publicar-organizador">Organizador <span class="req" aria-hidden="true">*</span></label>
+        <input type="text" id="publicar-organizador" name="organizador" required maxlength="120" autocomplete="organization" data-err="Escribe quién organiza el evento.">
+      </div>
+      <div class="b2b-f">
+        <label for="publicar-fecha">Fecha del evento <span class="req" aria-hidden="true">*</span></label>
+        <input type="date" id="publicar-fecha" name="fecha_evento" required aria-describedby="publicar-fecha-ayuda" data-err="Elige la fecha del evento.">
+        <small class="b2b-hint" id="publicar-fecha-ayuda">Si dura varios días, la del primero.</small>
+      </div>
+      <div class="b2b-f">
+        <label for="publicar-provincia">Provincia <span class="req" aria-hidden="true">*</span></label>
+        <select id="publicar-provincia" name="provincia" required data-err="Elige la provincia del evento."><option value="">Elige la provincia</option></select>
+      </div>
+      <div class="b2b-f">
+        <label for="publicar-localidad">Localidad y recinto <span class="req" aria-hidden="true">*</span></label>
+        <input type="text" id="publicar-localidad" name="localidad" required maxlength="120" autocomplete="off" data-err="Escribe la localidad del evento.">
+      </div>
+      <div class="b2b-f b2b-wide">
+        <label for="publicar-url">Web del evento o de la inscripción <span class="req" aria-hidden="true">*</span></label>
+        <input type="url" id="publicar-url" name="url" required maxlength="200" autocomplete="url" placeholder="https://" aria-describedby="publicar-url-ayuda" data-err="Escribe la web del evento (empieza por https://).">
+        <small class="b2b-hint" id="publicar-url-ayuda">Donde podamos comprobar fecha, lugar y precio.</small>
+      </div>
+      <div class="b2b-f">
+        <label for="publicar-rol">Tu relación con el evento <span class="req" aria-hidden="true">*</span></label>
+        <select id="publicar-rol" name="rol" required data-err="Elige tu relación con el evento.">
+          <option value="">Elige una opción</option>
+          <option value="titular">Soy quien lo organiza</option>
+          <option value="equipo">Trabajo con la organización</option>
+          <option value="otro">Soy participante u otra relación</option>
+        </select>
+      </div>
+      <div class="b2b-f">
+        <label for="publicar-email">Tu email <span class="req" aria-hidden="true">*</span></label>
+        <input type="email" id="publicar-email" name="email" required maxlength="120" autocomplete="email" placeholder="tu@email.com" aria-describedby="publicar-email-ayuda" data-err="Escribe tu email.">
+        <small class="b2b-hint" id="publicar-email-ayuda">Solo para contestarte sobre esta propuesta.</small>
+      </div>
+      <div class="b2b-f b2b-wide">
+        <label for="publicar-mensaje">Algo más que debamos saber (opcional)</label>
+        <textarea id="publicar-mensaje" name="mensaje" rows="4" maxlength="500" aria-describedby="publicar-mensaje-ayuda"></textarea>
+        <small class="b2b-hint" id="publicar-mensaje-ayuda">Formato, categorías, precio… Máximo 500 caracteres. No incluyas datos personales de terceros.</small>
+      </div>
+    </div>
+    <label class="b2b-check"><input type="checkbox" name="destacado" value="si"><span>Me interesa el evento destacado (49 € + IVA por evento). Quiero que me escribáis con las condiciones. No se cobra nada ahora.</span></label>
+    <div class="hp" aria-hidden="true" style="position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden"><label>No rellenar<input type="text" name="hp" tabindex="-1" autocomplete="off" data-lpignore="true" data-1p-ignore></label></div>
+    <p class="form-msg b2b-msg" role="alert" hidden></p>
+    <button type="submit" class="btn" aria-describedby="publicar-aviso">Enviar propuesta</button>
+    <p class="b2b-aviso" id="publicar-aviso" data-aviso="2026-10-b2b-sim-v1">Al enviar esta propuesta, Ritmo Híbrido usará tu email y los datos del formulario para revisarla, publicarla si procede y contestarte. Si marcas el interés en el evento destacado, también para informarte de sus condiciones; no se cobra nada ahora. No te apuntamos a ninguna lista de correo ni newsletter: solo te escribiremos por esta propuesta. Responsable: Ritmo Híbrido (info@ritmohibrido.com). Más información y tus derechos en la <a href="../privacidad/">política de privacidad</a>.</p>
+  </form>
   <div class="alta-cta">
-    <a class="btn" href="mailto:info@ritmohibrido.com?subject=Evento%20en%20Simulacros%20-%20Ritmo%20H%C3%ADbrido&body=Hola%2C%20quiero%20publicar%20un%20evento%20en%20la%20secci%C3%B3n%20Simulacros%20de%20Ritmo%20H%C3%ADbrido.%0D%0A%0D%0AOpci%C3%B3n%20(gratis%20o%20destacado)%3A%0D%0ANombre%20del%20evento%3A%0D%0AOrganizador%3A%0D%0AFecha%3A%0D%0ARecinto%20y%20ciudad%3A%0D%0AProvincia%3A%0D%0AEnlace%20de%20inscripci%C3%B3n%20o%20informaci%C3%B3n%3A">Publicar mi evento →</a>
+    <p class="alta-alt">¿Prefieres escribirnos?</p>
+    <a class="btn sec" href="mailto:info@ritmohibrido.com?subject=Evento%20en%20Simulacros%20-%20Ritmo%20H%C3%ADbrido&body=Hola%2C%20quiero%20publicar%20un%20evento%20en%20la%20secci%C3%B3n%20Simulacros%20de%20Ritmo%20H%C3%ADbrido.%0D%0A%0D%0AOpci%C3%B3n%20(gratis%20o%20destacado)%3A%0D%0ANombre%20del%20evento%3A%0D%0AOrganizador%3A%0D%0AFecha%3A%0D%0ARecinto%20y%20ciudad%3A%0D%0AProvincia%3A%0D%0AEnlace%20de%20inscripci%C3%B3n%20o%20informaci%C3%B3n%3A">Publicar mi evento por email →</a>
     <small>Se abre tu correo con un mensaje que ya pide los datos que necesitamos. ¿Prefieres una comisión por inscripción en vez de cuota fija? Escríbenos y lo hablamos.</small>
   </div>
 </div></section>
@@ -402,6 +460,6 @@
   <p class="legal">© <span data-year>2026</span> Ritmo Híbrido.com. Web independiente, sin relación con HYROX World GmbH ni con sus eventos oficiales. HYROX es una marca registrada de su titular y se menciona solo para identificar la competición.</p>
 </div></footer>
 <script src="../assets/js/config.js?v=8"></script>
-<script src="../assets/js/main.js?v=12"></script>
+<script src="../assets/js/main.js?v=13"></script>
 </body>
 </html>

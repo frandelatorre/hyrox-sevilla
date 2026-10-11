@@ -13,6 +13,7 @@ Web estática: HTML, CSS y JavaScript sin dependencias ni paso de compilación.
 | `calendario/` | Carreras de la temporada en España |
 | `plan/` | Plan de 16 semanas y alta por email |
 | `gimnasios/` | Directorio por ciudad (`gimnasios/<ciudad>/`) |
+| `simulacros/` | Listado de simulacros y carreras híbridas locales, y formulario para proponer uno |
 | `carreras/` | Una guía por carrera (`carreras/<ciudad>-<año>/`): plan, gimnasios, alojamiento, material y logística |
 | `material/` | Material recomendado, con enlaces de afiliado de Amazon.es |
 | `aviso-legal/`, `privacidad/`, `cookies/` | Páginas legales (titular, privacidad y cookies) |
@@ -70,7 +71,7 @@ Web estática: HTML, CSS y JavaScript sin dependencias ni paso de compilación.
   - `alertas`: alta en los avisos por provincia. El backend envía un email de bienvenida (con el enlace de baja) la primera vez que alguien se apunta. No hay PDF ni selector de carrera, y el frontend envía `carrera` vacía. Exige al menos un interés marcado (lo valida `assets/js/main.js`; el backend es permisivo y no lo exige).
   - El formulario envía `lead` e `intereses` (checkboxes `name="intereses"`, valores `carreras`, `simulacros`, `gimnasios`) al backend.
 - **Los intereses se acumulan:** si la misma persona se apunta más veces, los intereses se van sumando. Desde la web no se pueden quitar: para cambiarlos hay que escribir a info@ritmohibrido.com o darse de baja y volver a apuntarse (lo dice `privacidad/`).
-- **Aviso de consentimiento:** el `<p class="fine" data-consent="…">` que acompaña al botón es el texto canónico y su atributo es la versión (debe coincidir con `CONSENT_VERSION` de `backend/Code.gs`). Sin casilla premarcada. Va seguido de `id`, porque el test anti-deriva lo busca con el patrón `<p class="fine" data-consent="…"`.
+- **Aviso de consentimiento:** el `<p class="fine" data-consent="…">` que acompaña al botón es el texto canónico y su atributo es la versión de ese texto (debe coincidir con `CONSENT_PLAN` o `CONSENT_ALERTAS` de `backend/Code.gs`, según el texto). `index.html` y `plan/` llevan `CONSENT_PLAN` (`2026-10-v5-plan`); las 11 páginas del bloque de avisos, `CONSENT_ALERTAS` (`2026-10-v5-alertas`). Los textos de v5 son idénticos a los de v4: solo cambia la etiqueta. Sin casilla premarcada. Va seguido de `id`, porque el test anti-deriva lo busca con el patrón `<p class="fine" data-consent="…"`.
   - **Plan** (botón «Enviarme el plan»; en `plan/` el enlace es `../privacidad/`):
 
     > Al pulsar «Enviarme el plan», aceptas que Ritmo Híbrido use tu email, tu provincia y, si la eliges, tu carrera para enviarte el plan por email y, además, para enviarte comunicaciones informativas y comerciales por email (novedades, consejos, calendario y ofertas propias y de centros colaboradores, a los que no cedemos tus datos). Puedes retirar tu consentimiento y darte de baja con un clic desde cualquier mensaje. Responsable: Ritmo Híbrido (info@ritmohibrido.com). Más información y tus derechos en la política de privacidad.
@@ -80,13 +81,25 @@ Web estática: HTML, CSS y JavaScript sin dependencias ni paso de compilación.
     > Al pulsar «Apuntarme a los avisos», aceptas que Ritmo Híbrido use tu email y tu provincia para avisarte por email de novedades de carreras, simulacros y gimnasios de tu provincia según los intereses que marques y, además, para enviarte comunicaciones informativas y comerciales por email (novedades, consejos, calendario y ofertas propias y de centros colaboradores, a los que no cedemos tus datos). Puedes retirar tu consentimiento y darte de baja con un clic desde cualquier mensaje. Responsable: Ritmo Híbrido (info@ritmohibrido.com). Más información y tus derechos en la política de privacidad.
 
 - **Bloque de avisos (`<section id="avisos">`):** está en 11 páginas: `calendario/`, `simulacros/`, `gimnasios/{barcelona,madrid,malaga,sevilla,valencia}/` y `carreras/{barcelona-2026,bilbao-2027,madrid-2027,malaga-2027}/`. La fuente para copiarlo es `calendario/index.html`. Reglas:
-  - Un solo formulario de suscriptor por página y ningún formulario B2B (los de organizadores o centros no llevan `data-signup`).
+  - Como mucho un `form[data-signup]` y un `form[data-b2b]` por página, y nunca en el mismo `<form>`. En `simulacros/` conviven los dos; `gimnasios/index.html` solo lleva el B2B. En esas páginas no escribas en comentarios los literales `data-signup`, `data-consent`, `name="intereses"` ni `<form`: el test anti-deriva cuenta texto.
   - Ids `avisos`, `avisos-titulo` y `avisos-aviso`. No usar `#alta` (es el del plan) ni `#plan`.
   - Prohibido `data-provincia` en el `<body>` de `calendario/` y `simulacros/`: `main.js` reescribiría los enlaces a `/plan/` con una provincia que no corresponde. Las otras 9 páginas ya lo llevan (`bilbao-2027` = `bizkaia`).
   - Sin casillas premarcadas (`checked`) y sin selector `carrera`.
   - Dentro de `.cta` no usar texto blanco pequeño ni la clase `.link`: el contraste sobre el naranja no llega a 4,5:1 (el texto pequeño va en `var(--bg)`; ver `.cta` en `assets/css/styles.css`).
-- **Al subir `CONSENT_VERSION`** (`backend/Code.gs`), actualiza todos los `data-consent` de la web (`grep -rn data-consent` devuelve ahora 13 páginas: las 11 del bloque más `index.html` y `plan/`) y la fecha de `privacidad/` si cambia el texto.
-- **Orden de despliegue:** primero el backend (pegar el `.gs` nuevo, ejecutar `setup()` y crear una Nueva versión de la implementación), probar con un email propio que el alta, el email de bienvenida y la baja funcionan, y **solo entonces** hacer el push de la web. Los formularios de avisos no deben publicarse antes de que el backend esté desplegado.
+- **Al cambiar el texto del plan o el de los avisos**, sube la etiqueta que corresponda en `backend/Code.gs` (`CONSENT_PLAN` o `CONSENT_ALERTAS`) y actualiza los `data-consent` correspondientes (`grep -rn data-consent` devuelve 13 páginas: las 11 del bloque de avisos más `index.html` y `plan/`), la fecha de `privacidad/` y el archivo privado de consentimiento.
+- **Orden de despliegue:** primero el backend (pegar el `.gs` nuevo, ejecutar `setup()` y crear una Nueva versión de la implementación), probar con un email propio que el alta, el email de bienvenida y la baja funcionan, y **solo entonces** hacer el push de la web. Ni los formularios de avisos ni el de propuestas deben publicarse antes de que el backend esté desplegado. Una prueba local con el `config.js` real escribe una fila REAL en la hoja `Propuestas` y envía un correo real al titular: usa un email propio y marca la fila `Descartada`.
+
+## Formularios B2B (propuestas)
+
+Dos formularios con `form[data-b2b]` permiten que un tercero proponga un simulacro (`simulacros/`, `#publicar`) o un gimnasio (`gimnasios/`, `#proponer`). Van a la acción `propuesta` del backend y a la hoja `Propuestas`; no suscriben a nadie.
+
+- **Flujo:** recibir la propuesta, verificarla en la web del organizador o del gimnasio, publicarla a mano y marcarla `Publicada` en la hoja `Propuestas`. **Nunca se inventan datos** y nunca se publica solo con lo que escribe el proponente.
+- **Ids:** `publicar`, `publicar-titulo` y `publicar-aviso` (simulacros); `proponer`, `proponer-titulo` y `proponer-aviso` (gimnasios). `#alta` de `gimnasios/` se mantiene (lo enlazan `index.html` y `carreras/bilbao-2027`).
+- **Campos y reglas:** casilla `destacado` (solo en simulacros) sin marcar, honeypot `name="hp"`, la web en `name="url"`, y `data-aviso` del `<p class="b2b-aviso">` igual a la etiqueta de `B2B_AVISOS` en `backend/Code.gs` (`2026-10-b2b-sim-v1` y `2026-10-b2b-gym-v1`; una por texto).
+- **Prohibido en los B2B:** `data-signup`, `data-lead`, `data-consent`, `name="intereses"`, `name="carrera"` y `checked`. No llevan consentimiento comercial.
+- **Estilos:** clases propias `.b2b*` en `assets/css/styles.css`; no usar `.cta`.
+- Mantén los `mailto` como alternativa y no uses la marca HYROX como si fuera oficial.
+- **Copy:** nada que prometa inclusión incondicional («lo revisamos y, si encaja, lo publicamos»).
 
 ## Ver en local
 

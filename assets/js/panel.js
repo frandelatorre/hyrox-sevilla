@@ -81,13 +81,15 @@
         huecos: [],
       },
       dinero: { meses, total: meses.reduce((t, m) => t + m.total, 0), cierresTotal: 6, comisionTotal: 180 },
+      propuestas: { pendientes: 3, simulacros: 2, gimnasios: 1, destacado: 1, total: 9 },
       sistema: {
         cuotaRestante: 87, triggers: ['runDailyJob'], ultimaEjecucion: now.toISOString(), sinEmailPlan: 0,
         checks: [
           { k: 'Disparador diario de envíos', ok: true }, { k: 'Contraseña del panel', ok: true },
-          { k: 'URL de la web', ok: true },
+          { k: 'URL de la web', ok: true }, { k: 'Aviso de propuestas', ok: true },
         ],
-        filas: { suscriptores: 231, contactos: 28, campanas: 3, envios: 132 },
+        propuestasSinAviso: 0,
+        filas: { suscriptores: 231, contactos: 28, campanas: 3, envios: 132, propuestas: 9 },
         errores: [{ fecha: '03/10 09:02', origen: 'envio a3', detalle: 'Dirección inválida (ejemplo)' }],
       },
     };
@@ -134,6 +136,7 @@
   const VIEWS = {
     resumen(s) {
       const k = s.kpis;
+      const p = s.propuestas; // backend anterior a la Fase 2: sin este campo
       return '<h2>Resumen</h2><p class="sub">Últimos 30 días frente a los 30 anteriores.</p><div class="kpis">' +
         kpi('Suscriptores activos', nf.format(k.activos.value), delta(k.activos.delta, 0)) +
         kpi('Emails enviados', nf.format(k.enviados.value), delta(k.enviados.value, k.enviados.prev)) +
@@ -141,6 +144,11 @@
         kpi('Tasa de baja', k.tasaBaja.value === null ? '—' : pct(k.tasaBaja.value), k.tasaBaja.value === null ? '<span class="chip">Sin envíos</span>' : `<span class="chip">${k.tasaBaja.bajas} bajas</span>`) +
         kpi('Cierres del mes', nf.format(k.cierres.value), delta(k.cierres.value, k.cierres.prev)) +
         kpi('Comisión del mes', eur(k.comision.value), delta(k.comision.value, k.comision.prev)) +
+        kpi('Propuestas pendientes', p ? nf.format(p.pendientes) : '—',
+          !p ? '<span class="chip">Sin datos</span>'
+            : !p.pendientes ? '<span class="chip">al día</span>'
+            : p.destacado ? `<span class="chip up">${nf.format(p.destacado)} con destacado</span>`
+            : `<span class="chip">${nf.format(p.simulacros)} simulacros · ${nf.format(p.gimnasios)} gimnasios</span>`) +
         '</div><div class="card"><h3>Altas y bajas por semana (últimas 12)</h3>' + lineChart(s.semanas) + '</div>';
     },
 
@@ -189,7 +197,8 @@
         `<li><span class="dot ${y.cuotaRestante > 10 ? '' : 'warn'}"></span><span>Cuota de email restante hoy: <b>${nf.format(y.cuotaRestante)}</b></span></li>` +
         `<li><span class="dot"></span><span>Último envío automático: <b>${esc(when)}</b></span></li>` +
         `<li><span class="dot ${y.sinEmailPlan ? 'ko' : ''}"></span><span>Altas sin email del plan enviado: <b>${y.sinEmailPlan}</b> (se reintentan cada día)</span></li>` +
-        `<li><span class="dot"></span><span>Filas: ${y.filas.suscriptores} suscriptores · ${y.filas.contactos} contactos · ${y.filas.campanas} campañas · ${y.filas.envios} envíos</span></li></ul></div></div>` +
+        `<li><span class="dot ${y.propuestasSinAviso ? 'warn' : ''}"></span><span>Propuestas sin aviso por email: <b>${nf.format(y.propuestasSinAviso || 0)}</b> (se reintentan cada día durante 7 días)</span></li>` +
+        `<li><span class="dot"></span><span>Filas: ${y.filas.suscriptores} suscriptores · ${y.filas.contactos} contactos · ${y.filas.campanas} campañas · ${y.filas.envios} envíos · ${y.filas.propuestas || 0} propuestas</span></li></ul></div></div>` +
         table('Errores de los últimos 7 días', ['Cuándo', 'Dónde', 'Detalle'], y.errores.map(e => [e.fecha, e.origen, e.detalle]));
     },
 

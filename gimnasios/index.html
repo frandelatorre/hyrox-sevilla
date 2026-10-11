@@ -17,7 +17,7 @@
 <link rel="preload" href="../assets/fonts/barlow-400-normal-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="../assets/fonts/barlow-condensed-800-italic-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="../assets/fonts/fonts.css?v=9">
-<link rel="stylesheet" href="../assets/css/styles.css?v=13">
+<link rel="stylesheet" href="../assets/css/styles.css?v=14">
 </head>
 <body>
 <header class="site-header"><div class="wrap">
@@ -43,18 +43,68 @@
     <a class="card" href="valencia/"><span class="num">9</span><h3>Valencia</h3><p>centros con clases de carrera híbrida</p></a>
     <a class="card" href="malaga/"><span class="num">5</span><h3>Málaga</h3><p>centros con clases de carrera híbrida</p></a>
     <a class="card" href="sevilla/"><span class="num">11</span><h3>Sevilla</h3><p>centros con clases de carrera híbrida</p></a>
-    <a class="card" href="#alta"><span class="badge ghost">Tu centro</span><h3>¿Tu ciudad no está?</h3><p>Si tienes un centro, escríbenos y lo incluimos</p></a>
+    <a class="card" href="#proponer"><span class="badge ghost">Propón un centro</span><h3>¿Tu ciudad no está?</h3><p>Propón un centro y, si encaja, lo publicamos</p></a>
   </div>
 </div></section>
 
+<section class="b2b-sec"><div class="wrap">
+  <form class="b2b" id="proponer" data-b2b="gimnasio" method="post" aria-labelledby="proponer-titulo" novalidate>
+    <h2 class="b2b-title" id="proponer-titulo">¿Falta tu gimnasio? <span>Propónlo</span></h2>
+    <p class="b2b-intro">Si ofreces o conoces un centro con clases de carrera híbrida que no está en la guía, cuéntanoslo. Lo revisamos y solo lo publicamos cuando podamos confirmarlo en su web. Los campos con asterisco (*) son obligatorios.</p>
+    <noscript><p class="b2b-intro">Este formulario necesita JavaScript. Si no puedes activarlo, escríbenos a info@ritmohibrido.com.</p></noscript>
+    <div class="b2b-grid">
+      <div class="b2b-f b2b-wide">
+        <label for="proponer-nombre">Nombre del centro <span class="req" aria-hidden="true">*</span></label>
+        <input type="text" id="proponer-nombre" name="nombre" required maxlength="120" autocomplete="off" data-err="Escribe el nombre del centro.">
+      </div>
+      <div class="b2b-f">
+        <label for="proponer-provincia">Provincia <span class="req" aria-hidden="true">*</span></label>
+        <select id="proponer-provincia" name="provincia" required data-err="Elige la provincia del centro."><option value="">Elige la provincia</option></select>
+      </div>
+      <div class="b2b-f">
+        <label for="proponer-localidad">Ciudad y zona <span class="req" aria-hidden="true">*</span></label>
+        <input type="text" id="proponer-localidad" name="localidad" required maxlength="120" autocomplete="off" data-err="Escribe la ciudad del centro.">
+      </div>
+      <div class="b2b-f b2b-wide">
+        <label for="proponer-url">Web del centro <span class="req" aria-hidden="true">*</span></label>
+        <input type="url" id="proponer-url" name="url" required maxlength="200" autocomplete="url" placeholder="https://" aria-describedby="proponer-url-ayuda" data-err="Escribe la web del centro (empieza por https://).">
+        <small class="b2b-hint" id="proponer-url-ayuda">Donde podamos comprobar que ofrece clases de carrera híbrida.</small>
+      </div>
+      <div class="b2b-f">
+        <label for="proponer-rol">Tu relación con el centro <span class="req" aria-hidden="true">*</span></label>
+        <select id="proponer-rol" name="rol" required data-err="Elige tu relación con el centro.">
+          <option value="">Elige una opción</option>
+          <option value="titular">Soy el titular del centro</option>
+          <option value="equipo">Trabajo en el centro</option>
+          <option value="otro">Soy cliente u otra relación</option>
+        </select>
+      </div>
+      <div class="b2b-f">
+        <label for="proponer-email">Tu email <span class="req" aria-hidden="true">*</span></label>
+        <input type="email" id="proponer-email" name="email" required maxlength="120" autocomplete="email" placeholder="tu@email.com" aria-describedby="proponer-email-ayuda" data-err="Escribe tu email.">
+        <small class="b2b-hint" id="proponer-email-ayuda">Solo para contestarte sobre esta propuesta.</small>
+      </div>
+      <div class="b2b-f b2b-wide">
+        <label for="proponer-mensaje">Qué clases de carrera híbrida ofrece (opcional)</label>
+        <textarea id="proponer-mensaje" name="mensaje" rows="4" maxlength="500" aria-describedby="proponer-mensaje-ayuda"></textarea>
+        <small class="b2b-hint" id="proponer-mensaje-ayuda">Tipo de clases, horarios… Máximo 500 caracteres. No incluyas datos personales de terceros.</small>
+      </div>
+    </div>
+    <div class="hp" aria-hidden="true" style="position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden"><label>No rellenar<input type="text" name="hp" tabindex="-1" autocomplete="off" data-lpignore="true" data-1p-ignore></label></div>
+    <p class="form-msg b2b-msg" role="alert" hidden></p>
+    <button type="submit" class="btn" aria-describedby="proponer-aviso">Enviar propuesta</button>
+    <p class="b2b-aviso" id="proponer-aviso" data-aviso="2026-10-b2b-gym-v1">Al enviar esta propuesta, Ritmo Híbrido usará tu email y los datos del formulario para revisarla, publicarla si procede y contestarte. No te apuntamos a ninguna lista de correo ni newsletter: solo te escribiremos por esta propuesta. Responsable: Ritmo Híbrido (info@ritmohibrido.com). Más información y tus derechos en la <a href="../privacidad/">política de privacidad</a>.</p>
+  </form>
+</div></section>
+
 <section class="alt" id="alta"><div class="wrap">
-  <div class="head"><h2>¿Tienes <span>un centro</span>?</h2><p>Si ofreces clases de carrera híbrida, queremos incluirte en la guía de tu ciudad. Elige cómo aparecer.</p></div>
+  <div class="head"><h2>¿Tienes <span>un centro</span>?</h2><p>Si ofreces clases de carrera híbrida, puedes aparecer en la guía de tu ciudad. Elige cómo hacerlo.</p></div>
   <div class="tiers">
     <div class="card tier">
       <span class="badge ghost">Gratis</span>
       <h3>Ficha gratuita</h3>
       <ul><li>Nombre del centro</li><li>Zona</li><li>Enlace a tu web</li></ul>
-      <p class="price">0 €<small>Escríbenos y te añadimos.</small></p>
+      <p class="price">0 €<small>Propónlo <a class="link" href="#proponer">en el formulario</a>: lo revisamos y, si encaja, lo publicamos.</small></p>
     </div>
     <div class="card tier pro">
       <span class="badge">Destacado</span>
@@ -80,6 +130,6 @@
   <p class="legal">© <span data-year>2026</span> Ritmo Híbrido.com. Web independiente, sin relación con HYROX World GmbH ni con sus eventos oficiales. HYROX es una marca registrada de su titular y se menciona solo para identificar la competición.</p>
 </div></footer>
 <script src="../assets/js/config.js?v=8"></script>
-<script src="../assets/js/main.js?v=12"></script>
+<script src="../assets/js/main.js?v=13"></script>
 </body>
 </html>

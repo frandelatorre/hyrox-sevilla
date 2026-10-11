@@ -137,6 +137,27 @@ if (document.body.dataset.provincia && pageProvince()) document.querySelectorAll
   if (/(^|\/)plan\/$/.test(path)) a.setAttribute('href', path + '?provincia=' + pageProvince() + (hash ? '#' + hash : ''));
 });
 
+// Ayudas compartidas por los formularios de alta (data-signup) y de propuestas (data-b2b)
+function fillProvinces(select, placeholder, selected) {
+  // El HTML trae unas pocas opciones de respaldo; con JS se sustituyen por la lista completa, ordenada A–Z.
+  const sorted = Object.keys(PROVINCIAS).filter(k => k !== 'otra').sort((a, b) => PROVINCIAS[a].localeCompare(PROVINCIAS[b], 'es'));
+  select.innerHTML = '<option value="">' + placeholder + '</option>' +
+    sorted.map(k => `<option value="${k}">${PROVINCIAS[k]}</option>`).join('') +
+    `<option value="otra">${PROVINCIAS.otra}</option>`;
+  if (selected) select.value = selected;
+}
+function formUi(form) {
+  const msg = form.querySelector('.form-msg');
+  const say = (text, bad) => { msg.textContent = text; msg.dataset.bad = bad ? '1' : ''; msg.hidden = !text; };
+  // Al terminar bien, el formulario se sustituye por un aviso que recibe el foco (así lo anuncia el lector de pantalla).
+  const done = html => {
+    form.innerHTML = '<div class="form-done" role="status" tabindex="-1">' + html + '</div>';
+    const box = form.querySelector('.form-done');
+    if (box) box.focus();
+  };
+  return { say, done };
+}
+
 // Formularios de alta
 document.querySelectorAll('form[data-signup]').forEach(form => {
   const t0 = Date.now();
@@ -144,28 +165,15 @@ document.querySelectorAll('form[data-signup]').forEach(form => {
   const $ = sel => form.querySelector(sel);
   const prov = $('select[name="provincia"]');
   if (prov) {
-    // El HTML trae unas pocas opciones de respaldo; con JS se sustituyen por la lista completa, ordenada A–Z.
-    const sorted = Object.keys(PROVINCIAS).filter(k => k !== 'otra').sort((a, b) => PROVINCIAS[a].localeCompare(PROVINCIAS[b], 'es'));
-    prov.innerHTML = '<option value="">Elige tu provincia</option>' +
-      sorted.map(k => `<option value="${k}">${PROVINCIAS[k]}</option>`).join('') +
-      `<option value="otra">${PROVINCIAS.otra}</option>`;
     const pre = Object.prototype.hasOwnProperty.call(PROVINCIAS, form.dataset.provincia) ? form.dataset.provincia : pageProvince();
-    if (pre) prov.value = pre;
+    fillProvinces(prov, 'Elige tu provincia', pre);
   }
   const races = $('select[name="carrera"]');
   if (races) races.innerHTML = '<option value="">¿Qué carrera preparas?</option>' +
     upcoming().map(r => `<option value="${r.id}">${r.city} · ${r.label}</option>`).join('') +
     '<option value="ninguna">Todavía ninguna</option>';
 
-  const msg = $('.form-msg');
-  const say = (text, bad) => { msg.textContent = text; msg.dataset.bad = bad ? '1' : ''; msg.hidden = !text; };
-
-  // Al terminar bien, el formulario se sustituye por un aviso que recibe el foco (así lo anuncia el lector de pantalla).
-  const done = html => {
-    form.innerHTML = '<div class="form-done" role="status" tabindex="-1">' + html + '</div>';
-    const box = form.querySelector('.form-done');
-    if (box) box.focus();
-  };
+  const { say, done } = formUi(form);
 
   form.addEventListener('submit', async e => {
     e.preventDefault();
@@ -219,5 +227,72 @@ document.querySelectorAll('form[data-signup]').forEach(form => {
   });
 });
 
+// Formularios de propuestas (data-b2b="simulacro" | "gimnasio"): van a la hoja «Propuestas». No suscriben a nadie:
+// sin consentimiento comercial, sin intereses y sin lista de correo. Su aviso informativo lleva data-aviso.
+document.querySelectorAll('form[data-b2b]').forEach(form => {
+  const tipo = form.dataset.b2b === 'gimnasio' ? 'gimnasio' : 'simulacro';
+  const t0 = Date.now();
+  const $ = sel => form.querySelector(sel);
+  const { say, done } = formUi(form);
+  const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
+  const prov = $('select[name="provincia"]');
+  if (prov) fillProvinces(prov, 'Elige la provincia', '');
+  const fecha = $('input[name="fecha_evento"]');
+  const ymd = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  if (fecha) { // comodidad del navegador; la validación real es la del backend
+    const hoy = new Date();
+    fecha.min = ymd(hoy);
+    fecha.max = ymd(new Date(hoy.getFullYear() + 2, hoy.getMonth(), hoy.getDate()));
+  }
+  // Campo del formulario al que corresponde cada error del backend (tipo y busy no tienen campo)
+  const FIELD = { email: 'email', tipo: '', nombre: 'nombre', organizador: 'organizador', provincia: 'provincia', localidad: 'localidad', fecha: 'fecha_evento', url: 'url', mensaje: 'mensaje', rol: 'rol' };
+  const ERRS = {
+    email: 'Revisa el email: no parece válido.', nombre: 'Revisa el nombre (máximo 120 caracteres).', organizador: 'Revisa el organizador (máximo 120 caracteres).',
+    provincia: 'Elige la provincia.', localidad: 'Revisa la localidad (máximo 120 caracteres).', fecha: 'Revisa la fecha: tiene que ser desde hoy y dentro de los próximos dos años.',
+    url: 'Revisa la web: tiene que empezar por http:// o https://.', mensaje: 'El mensaje es demasiado largo (máximo 500 caracteres).', rol: 'Elige tu relación.',
+    tipo: 'No hemos podido procesar tu solicitud. Recarga la página e inténtalo de nuevo.', busy: 'Hay mucha demanda ahora mismo. Inténtalo de nuevo en unos minutos.',
+  };
+  const invalid = (el, text) => { if (el) { el.setAttribute('aria-invalid', 'true'); } say(text, true); if (el) el.focus(); };
+  form.addEventListener('input', e => { if (e.target.removeAttribute) e.target.removeAttribute('aria-invalid'); });
+
+  form.addEventListener('submit', async e => {
+    e.preventDefault();
+    form.querySelectorAll('[aria-invalid]').forEach(el => el.removeAttribute('aria-invalid'));
+    const v = name => (form.elements[name] ? String(form.elements[name].value || '').trim() : '');
+    // Obligatorios, en el orden del formulario (cada campo trae su mensaje en data-err)
+    const empty = [...form.elements].find(el => el.required && !String(el.value).trim());
+    if (empty) return invalid(empty, empty.dataset.err || 'Rellena los campos obligatorios.');
+    if (!/^[^\s@]{1,64}@[^\s@]+\.[^\s@]{2,}$/.test(v('email'))) return invalid(form.elements.email, ERRS.email);
+    if (!/^https?:\/\/\S+$/i.test(v('url'))) return invalid(form.elements.url, ERRS.url);
+    if (fecha && (fecha.value < fecha.min || fecha.value > fecha.max)) return invalid(fecha, ERRS.fecha);
+
+    const btn = $('button[type="submit"]'), label = btn.textContent;
+    const aviso = $('[data-aviso]');
+    const payload = {
+      action: 'propuesta', tipo, nombre: v('nombre'), organizador: v('organizador'), email: v('email'), provincia: v('provincia'),
+      localidad: v('localidad'), fecha_evento: v('fecha_evento'), url: v('url'), mensaje: v('mensaje'), rol: v('rol'),
+      destacado: !!(form.elements.destacado && form.elements.destacado.checked), aviso: aviso ? aviso.dataset.aviso : '',
+      hp: v('hp'), ms: Date.now() - t0, origen: location.pathname.replace(/\/$/, '') || '/',
+    };
+    btn.disabled = true; btn.textContent = 'Enviando…'; say('');
+    try {
+      const out = await rhApi(payload);
+      if (out === null) { // demostración: sin backend
+        done('<p class="form-ok">Recibido (modo demostración).</p><p class="form-sub">No se ha enviado nada: falta el endpoint en assets/js/config.js.</p>');
+      } else if (out.ok) {
+        done('<p class="form-ok">Recibido.</p><p class="form-sub">Lo revisaremos y solo lo publicaremos cuando podamos confirmarlo en la web del ' +
+          (tipo === 'gimnasio' ? 'gimnasio' : 'organizador') + '. No te hemos apuntado a ninguna lista de correo.</p>');
+      } else {
+        const el = own(FIELD, out.error) && FIELD[out.error] ? form.elements[FIELD[out.error]] : null;
+        btn.disabled = false; btn.textContent = label;
+        if (el) invalid(el, ERRS[out.error]);
+        else { say(own(ERRS, out.error) ? ERRS[out.error] : 'No hemos podido enviarlo. Inténtalo de nuevo en un momento.', true); btn.focus(); }
+      }
+    } catch (err) {
+      say('No hemos podido conectar. Revisa tu conexión e inténtalo de nuevo.', true);
+      btn.disabled = false; btn.textContent = label; btn.focus();
+    }
+  });
+});
 
 document.querySelectorAll('[data-year]').forEach(el => el.textContent = new Date().getFullYear());

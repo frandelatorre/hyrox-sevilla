@@ -6,10 +6,11 @@ const MAIL_C = { bg: '#0E1013', ink: '#14171C', mut: '#5E6773', acc: '#FF5A1F', 
 const FONT = "'Barlow Condensed','Arial Narrow',Arial,sans-serif";
 const BODY_FONT = "Barlow,Arial,Helvetica,sans-serif";
 
-function mail_(to, subject, html) {
+function mail_(to, subject, html, extra) {
   const c = cfg_();
   const opts = { to, subject, htmlBody: html, body: htmlToText_(html), name: c.SENDER_NAME || 'Ritmo Híbrido' };
   if (c.REPLY_TO) opts.replyTo = c.REPLY_TO;
+  if (extra && extra.replyTo) opts.replyTo = extra.replyTo; // 4.º parámetro opcional; los demás usos no cambian
   MailApp.sendEmail(opts);
 }
 
@@ -55,7 +56,8 @@ function button_(url, label) {
 /** Estructura común: cabecera de marca, contenido, bloque de publicidad opcional y pie legal. */
 function layout_(o) {
   const c = cfg_();
-  const footer = [
+  // `internal`: aviso al titular (no es una comunicación a un suscriptor): el pie es solo el motivo, sin responsable, política ni baja
+  const footer = o.internal ? o.reason : [
     o.reason,
     'Responsable: Ritmo Híbrido.com, El Bierzo, Sevilla (' + esc_(c.CONTACT_EMAIL) + '). <a href="' + c.SITE_URL + '/privacidad/" style="color:' + MAIL_C.mut + '">Política de privacidad</a>.',
     o.unsubUrl ? '<a href="' + o.unsubUrl + '" style="color:' + MAIL_C.mut + '">Darme de baja con un clic</a>' : '',
@@ -74,7 +76,7 @@ function layout_(o) {
     '</table></td></tr></table></body></html>';
 }
 
-/** Párrafo de consentimiento de los emails de bienvenida (plan y avisos). `prefijo` = cómo empieza: «Al pedir el plan», «Al apuntarte a los avisos». Cubierto por CONSENT_VERSION. */
+/** Párrafo de consentimiento de los emails de bienvenida (plan y avisos). `prefijo` = cómo empieza: «Al pedir el plan», «Al apuntarte a los avisos». Cubierto por CONSENT_PLAN y CONSENT_ALERTAS (mismo párrafo). */
 function consentNote_(prefijo) {
   return '<p style="margin:0 0 16px;font-size:14px;color:' + MAIL_C.mut + '">' + esc_(prefijo) + ' aceptaste recibir, de vez en cuando, comunicaciones informativas y comerciales por email de Ritmo Híbrido y de centros colaboradores (novedades, consejos, calendario y ofertas), sin que cedamos tus datos a esos centros. Puedes retirar tu consentimiento cuando quieras con un clic al pie de este email.</p>';
 }
@@ -146,6 +148,45 @@ function adBox_(label, title, text, url, button) {
     (text ? '<div style="margin-bottom:10px">' + richText_(text).replace(/margin:0 0 16px/g, 'margin:0 0 8px') + '</div>' : '') +
     (/^https?:\/\//.test(String(url)) ? '<a href="' + esc_(url) + '" style="color:' + MAIL_C.acc + ';font-weight:700">' + esc_(button || 'Más información') + ' →</a>' : '') +
     '</td></tr></table>';
+}
+
+// ------------------------------------------------- Aviso de propuestas
+
+/** Texto libre del proponente → HTML seguro: escapado y sin que el cliente de correo lo vuelva enlace (la «://» lleva un espacio de ancho cero). */
+function plain_(s) { return esc_(s).replace(/:\/\//g, ':\u200b//'); }
+
+const PROP_ROL_ES = { titular: 'Titular u organizador', equipo: 'Trabaja con la organización o en el centro', otro: 'Otra relación (participante, cliente…)' };
+
+/**
+ * Email al titular con una propuesta. Tabla etiqueta/valor, TODO escapado, SIN richText_, sin baja ni confirmación (no es una
+ * comunicación a un suscriptor). Los únicos enlaces son la web de la propuesta (ya validada como http/https) y la hoja. Devuelve { subject, html }.
+ */
+function proposalEmail_(p, sheetUrl) {
+  const gym = p.tipo === 'gimnasio';
+  const nom = String(p.nombre || '').replace(/[\r\n]+/g, ' ');
+  const subject = '[Propuesta] ' + (gym ? 'Gimnasio' : 'Simulacro') + ': ' + (nom.length > 60 ? nom.slice(0, 60) + '…' : nom);
+  const row = (k, vHtml) => '<tr><td style="padding:8px 12px 8px 0;vertical-align:top;white-space:nowrap;font-weight:700;color:' + MAIL_C.mut + '">' + esc_(k) + ': </td>' +
+    '<td style="padding:8px 0;vertical-align:top;border-bottom:1px solid ' + MAIL_C.line + '">' + vHtml + '</td></tr>';
+  const f = d => { const x = toDate_(d); return x ? Utilities.formatDate(x, TZ, 'dd/MM/yyyy HH:mm') : ''; };
+  const web = /^https?:\/\/[^\s"<>]+$/i.test(String(p.web)) ? '<a href="' + esc_(p.web) + '" style="color:' + MAIL_C.acc + ';font-weight:700">' + esc_(p.web) + '</a>' : plain_(p.web);
+  // Si Sheets convirtió la fecha del evento en fecha real (hoja sin formato de texto), se muestra como AAAA-MM-DD
+  const fev = p.fecha_evento instanceof Date ? Utilities.formatDate(p.fecha_evento, TZ, 'yyyy-MM-dd') : String(p.fecha_evento || '');
+  const rows = [
+    row('Tipo', gym ? 'Gimnasio' : 'Simulacro'), row('Nombre', plain_(nom)),
+    p.organizador ? row('Organizador', plain_(p.organizador)) : '',
+    fev ? row('Fecha del evento', plain_(fev)) : '',
+    row('Provincia', plain_(provinceName_(p.provincia))), row('Localidad', plain_(p.localidad)), row('Web', web),
+    row('Email del proponente', plain_(p.email)), row('Relación', plain_(PROP_ROL_ES[p.rol] || '—')),
+    row('Interés en el destacado', p.destacado === 'SI' ? 'Sí (49 € + IVA por evento)' : 'No'),
+    row('Mensaje', p.mensaje ? plain_(p.mensaje).replace(/\n/g, '<br>') : '—'),
+    row('Recibida', f(p.fecha)), row('ID', plain_(p.id)),
+  ].join('');
+  const body = '<p style="margin:0 0 16px">Alguien ha enviado el formulario de propuestas de ritmohibrido.com. Los datos los ha escrito esa persona y <strong>no están verificados</strong>: comprueba la web del organizador antes de publicar nada.</p>' +
+    '<table role="presentation" cellspacing="0" cellpadding="0" style="width:100%;font-size:15px">' + rows + '</table>' +
+    '<p style="margin:16px 0">No se ha escrito al proponente ni se le ha apuntado a ninguna lista. Para contestarle, usa «Responder» en este mensaje (la respuesta irá a su email).</p>' +
+    (/^https:\/\/docs\.google\.com\/[^\s"<>]*$/.test(String(sheetUrl)) ? button_(sheetUrl, 'Abrir la hoja Propuestas') : '');
+  return { subject, html: layout_({ preheader: 'Revisa la propuesta y comprueba la web antes de publicar.', title: 'Nueva propuesta', bodyHtml: body,
+    reason: 'Aviso interno de ritmohibrido.com. No es una suscripción: no hay enlace de baja.', internal: true }) };
 }
 
 // ------------------------------------------------- Secuencia de bienvenida

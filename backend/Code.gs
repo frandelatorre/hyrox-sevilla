@@ -5,16 +5,18 @@
  * Instalación paso a paso: backend/README.md
  *
  * Endpoint (web app, acceso "Cualquiera"): recibe POST con JSON en texto plano.
- *   action: 'signup' | 'confirm' | 'unsub' | 'stats'
+ *   action: 'signup' | 'confirm' | 'unsub' | 'stats' | 'propuesta'
  */
 
 const TZ = 'Europe/Madrid';
 
-// Versión del texto de consentimiento: el de TODOS los avisos de la web (plan y alertas) y el de los emails de bienvenida
-// (el del plan y el de los avisos, que comparten el párrafo de consentimiento: consentNote_ en Mail.gs).
-// Súbela cada vez que cambies cualquiera de ellos: queda guardada junto a la fecha de cada confirmación como prueba
-// de qué aceptó cada persona.
-const CONSENT_VERSION = '2026-10-v4';
+// Etiquetas del texto de consentimiento. Una por texto: la del plan (index y plan/) y la de los avisos (las 11 páginas con #avisos).
+// Súbela cuando cambie su texto (y el del email de bienvenida que lo acompaña, consentNote_ en Mail.gs): queda guardada junto a la
+// fecha de cada confirmación como prueba de qué aceptó cada persona.
+const CONSENT_PLAN = '2026-10-v5-plan';
+const CONSENT_ALERTAS = '2026-10-v5-alertas';
+const CONSENT_VERSION = CONSENT_PLAN; // alias (handleConfirm_ y tests antiguos)
+const CONSENT_KEEP = 20; // pares «etiqueta@fecha» que se guardan por suscriptor
 
 // Tipos de alta que acepta el formulario: `plan` (recibe el PDF y la secuencia) y `alertas` (email de bienvenida de avisos y campañas).
 const SIGNUP_LEADS = ['plan', 'alertas'];
@@ -28,18 +30,24 @@ const T = {
   SENDS: 'Envíos',
   CFG: 'Config',
   LOG: 'Registro',
+  PROP: 'Propuestas',
 };
 
 const COLS = {
   'Suscriptores': ['id', 'fecha_alta', 'email', 'ciudad', 'carrera', 'origen', 'estado', 'marketing',
     'fecha_confirmacion', 'consentimiento', 'fecha_baja', 'token', 'emails_confirmacion', 'secuencia', 'fecha_secuencia', 'intereses', 'lead',
-    'bienvenida'], // `bienvenida`: fecha del email de bienvenida de los avisos (vacío = no enviado)
+    'bienvenida', // fecha del email de bienvenida de los avisos (vacío = no enviado)
+    'consentimientos'], // historial «etiqueta@AAAA-MM-DD HH:mm | …» de los textos aceptados (el último de cada tipo manda en `consentimiento`)
   'Contactos': ['id', 'fecha', 'email', 'nombre', 'telefono', 'ciudad', 'estado', 'centro', 'fecha_cierre', 'comision', 'notas'],
   'Campañas': ['id', 'mes', 'fecha_envio', 'asunto', 'titulo', 'cuerpo', 'publi_activa', 'publi_titulo', 'publi_texto',
     'publi_enlace', 'publi_boton', 'segmento_ciudad', 'estado', 'enviados', 'errores', 'fecha_fin', 'ingreso_publi',
     'segmento_interes'], // vacío = todos; carreras, simulacros, gimnasios separados por comas
   'Envíos': ['fecha', 'campana', 'email', 'resultado'],
   'Registro': ['fecha', 'origen', 'detalle'],
+  // Propuestas de eventos o gimnasios que envía quien visita la web (formularios B2B). Aparte de Suscriptores: no apuntan a nadie.
+  // `estado`: Nuevo → Verificada → Publicada | Descartada. `web` es la URL de la propuesta (en la petición se llama `url`).
+  'Propuestas': ['id', 'fecha', 'tipo', 'nombre', 'organizador', 'email', 'provincia', 'localidad', 'fecha_evento', 'web', 'mensaje',
+    'destacado', 'rol', 'origen', 'estado', 'notas', 'fecha_revision', 'notificada', 'version_aviso'],
 };
 
 // Provincias (slug sin tildes → nombre). La columna de la hoja se sigue llamando `ciudad`, pero guarda el slug de la provincia.
@@ -137,6 +145,8 @@ const CFG_DEFAULTS = [
   ['COMISION_CIERRE', '30', 'Comisión por defecto (€) al marcar un contacto como Cerrado'],
   ['CUOTA_RESERVA', '10', 'Emails diarios que nunca se gastan en campañas (confirmaciones, avisos)'],
   ['SECUENCIA_ACTIVA', 'SI', 'SI = cada alta recibe los 4 emails de bienvenida (días 2, 7, 14 y 28). NO = pausada'],
+  ['EMAIL_PROPUESTAS', '', 'Donde llegan los avisos de propuestas nuevas (vacío = CONTACT_EMAIL; si no vale, la cuenta de Google)'],
+  ['PROPUESTAS_MAX_DIA', '20', 'Tope de avisos de propuestas por día (0 = no avisar; las filas se guardan igual)'],
 ];
 
 // Carreras del formulario (mismo `id` y fecha que RACES en assets/js/main.js: si cambias una, cambia la otra).
@@ -174,6 +184,7 @@ function doPost(e) {
       case 'confirm': out = handleConfirm_(req); break;
       case 'unsub': out = handleUnsub_(req); break;
       case 'stats': out = handleStats_(req); break;
+      case 'propuesta': out = handleProposal_(req); break;
       default: out = { ok: false, error: 'accion' };
     }
   } catch (err) {
@@ -191,7 +202,8 @@ function json_(obj) {
 
 /**
  * Alta de un solo paso, para el plan y para las alertas: quien pulsa el botón del formulario acepta recibir
- * comunicaciones (el aviso que lo acompaña lo dice) y se guardan la fecha y la versión del texto (CONSENT_VERSION).
+ * comunicaciones (el aviso que lo acompaña lo dice) y se guardan la fecha y la etiqueta del texto (CONSENT_PLAN o CONSENT_ALERTAS,
+ * según el tipo de alta; el historial completo queda en `consentimientos`).
  * `lead` = 'plan' (por defecto, web en caché) o 'alertas'. El plan envía un email en el acto, con el PDF;
  * las alertas envían un único email de bienvenida (sin PDF, sin secuencia) la primera vez, y reciben las campañas.
  * `intereses` es una lista cerrada (INTERESTS). La columna `emails_confirmacion` cuenta los emails con el plan enviados
@@ -228,12 +240,13 @@ function handleSignup_(req) {
     const now = new Date();
     const found = table_(T.SUBS).rows.find(s => String(s.email).toLowerCase() === email);
     const data = { ciudad, carrera, origen };
-    const consent = { estado: 'Confirmado', marketing: 'SI', fecha_confirmacion: now, consentimiento: CONSENT_VERSION };
+    const label = consentFor_(lead); // la etiqueta del texto que vio quien se apunta la pone el servidor según el tipo de alta
+    const consent = { estado: 'Confirmado', marketing: 'SI', fecha_confirmacion: now, consentimiento: label };
     let sub, row;
 
     if (!found) {
       sub = Object.assign({ id: shortId_(), fecha_alta: now, email, token: token_(), emails_confirmacion: 0, secuencia: 0 }, data, consent,
-        { intereses: intereses.join(','), lead });
+        { intereses: intereses.join(','), lead, consentimientos: addConsent_({}, label, now) });
       appendObj_(T.SUBS, sub);
       row = lastRow_(T.SUBS);
     } else {
@@ -248,8 +261,10 @@ function handleSignup_(req) {
       patch.intereses = (reset ? intereses : mergeInterests_(found.intereses, intereses)).join(',');
       // `lead` es monótono: plan > alertas. Quien ya pidió el plan no baja a alertas; tras una baja se parte de cero
       patch.lead = reset ? lead : ((lead === 'plan' || hadPlan) ? 'plan' : 'alertas');
-      if (found.estado !== 'Confirmado') Object.assign(patch, consent, { fecha_alta: now, bienvenida: '' }); // vuelve a recibir la bienvenida de avisos
-      else if (String(found.consentimiento) !== CONSENT_VERSION) Object.assign(patch, consent); // re-consentimiento con el texto nuevo
+      // Baja o pendiente: siempre se reescribe el consentimiento y vuelve a recibir la bienvenida de avisos
+      if (found.estado !== 'Confirmado') Object.assign(patch, consent, { fecha_alta: now, bienvenida: '', consentimientos: addConsent_(found, label, now) });
+      // Confirmado: solo se reescribe si no consta que haya aceptado ESTE texto (una vez por texto; alternar formularios no la repite)
+      else if (!hasConsent_(found, label)) Object.assign(patch, consent, { consentimientos: addConsent_(found, label, now) });
       if (reset || !found.token) patch.token = token_();
       if (reset) {
         // Petición nueva tras una baja: vuelve a poder recibir el plan y la secuencia empieza de cero
@@ -270,6 +285,24 @@ function handleSignup_(req) {
     sendAlertsWelcome_(sub, row);
     return { ok: true };
   });
+}
+
+/** Etiqueta del texto de consentimiento que acepta cada tipo de alta: los avisos tienen el suyo; el plan (y lo desconocido) el del plan. */
+function consentFor_(lead) { return lead === 'alertas' ? CONSENT_ALERTAS : CONSENT_PLAN; }
+/** Etiquetas (sin fecha) del historial «etiqueta@fecha | etiqueta@fecha». */
+function consentLabels_(hist) { return String(hist || '').split('|').map(x => x.trim().split('@')[0]).filter(Boolean); }
+/** ¿Consta ya la aceptación de este texto? Sin historial (fila anterior a la columna) vale la etiqueta de `consentimiento`. */
+function hasConsent_(sub, label) {
+  const l = consentLabels_(sub.consentimientos);
+  return l.length ? l.indexOf(label) >= 0 : String(sub.consentimiento) === label;
+}
+/** Historial nuevo con esta aceptación al final. Una fila previa sin historial conserva lo que ya constaba (etiqueta@fecha_confirmacion). */
+function addConsent_(sub, label, now) {
+  const f = d => Utilities.formatDate(d, TZ, 'yyyy-MM-dd HH:mm');
+  const pairs = String(sub.consentimientos || '').split('|').map(x => x.trim()).filter(Boolean);
+  if (!pairs.length && sub.consentimiento) { const d = toDate_(sub.fecha_confirmacion); pairs.push(sub.consentimiento + (d ? '@' + f(d) : '')); }
+  pairs.push(label + '@' + f(now));
+  return pairs.slice(-CONSENT_KEEP).join(' | ');
 }
 
 /** Tipo de alta de la petición: ausente = 'plan' (web en caché). Un valor que no es 'plan' ni 'alertas' (o no es texto) es inválido (null). */
@@ -353,15 +386,187 @@ function retryAlertsWelcome_() {
     .forEach(s => sendAlertsWelcome_(s, s._row));
 }
 
-/** Máximo 40 altas por hora en total: evita que alguien agote la cuota diaria de emails con el formulario. */
-function rateLimited_() {
+/** Máximo `max` llamadas por hora en total para el contador `key`: 40 altas por hora (`hr`, por defecto) evitan que alguien agote la cuota diaria de emails con el formulario; las propuestas tienen el suyo (`hb`). */
+function rateLimited_(key = 'hr', max = 40) {
   const cache = CacheService.getScriptCache();
-  const raw = cache.get('hr');
+  const raw = cache.get(key);
   let o = raw ? JSON.parse(raw) : { n: 0, t: Date.now() };
   if (Date.now() - o.t > 36e5) o = { n: 0, t: Date.now() };
   o.n++;
-  cache.put('hr', JSON.stringify(o), 3600);
-  return o.n > 40;
+  cache.put(key, JSON.stringify(o), 3600);
+  return o.n > max;
+}
+
+// ------------------------------------------------------ Propuestas (B2B)
+
+// Propuestas de eventos o gimnasios (formularios `data-b2b` de simulacros/ y gimnasios/). Van a la hoja «Propuestas», NO a Suscriptores:
+// no apuntan a nadie a ninguna lista, no hay token ni confirmación, y el único email es el aviso al titular (notifyProposal_).
+// Cada formulario lleva su aviso informativo con una etiqueta (una por texto): su `data-aviso` debe ser igual a B2B_AVISOS[tipo]. Súbela si cambia el texto.
+const B2B_AVISOS = { simulacro: '2026-10-b2b-sim-v1', gimnasio: '2026-10-b2b-gym-v1' };
+const PROP_LIMITS = { nombre: 120, organizador: 120, localidad: 120, url: 200, mensaje: 500, email: 120 };
+const PROP_TIPOS = ['simulacro', 'gimnasio'];
+const PROP_ROLES = ['titular', 'equipo', 'otro'];
+const PROP_ESTADOS = ['Nuevo', 'Verificada', 'Publicada', 'Descartada'];
+const PROP_EMAIL_RE = /^[^\s@,;:<>"()\[\]\\]{1,64}@[^\s@,;:<>"()\[\]\\]+\.[^\s@,;:<>"()\[\]\\]{2,}$/; // más estricta que la del alta: sin separadores (va a replyTo)
+const PROP_TEXT_COLS = ['nombre', 'organizador', 'email', 'localidad', 'fecha_evento', 'web', 'mensaje', 'notas', 'origen', 'version_aviso'];
+const CTRL_ = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F-\u009F\u200B-\u200F\u2028\u2029\u202A-\u202E\u2060-\u2064\u2066-\u2069\uFEFF]/g;
+
+/** Una línea: solo acepta cadenas; quita saltos, controles y marcas bidi; null si no es texto o pasa de `max`. */
+function cleanLine_(v, max) {
+  if (typeof v !== 'string') return null;
+  const s = v.replace(/[\r\n\t]+/g, ' ').replace(CTRL_, '').replace(/\s+/g, ' ').trim();
+  return s.length > max ? null : s;
+}
+/** Texto con saltos de línea (\n): sin \r, sin tabuladores ni controles. */
+function cleanText_(v, max) {
+  if (typeof v !== 'string') return null;
+  const s = v.replace(/\r\n?/g, '\n').replace(/\t/g, ' ').replace(CTRL_, '').replace(/ {2,}/g, ' ').replace(/\n{3,}/g, '\n\n').trim();
+  return s.length > max ? null : s;
+}
+/** 'AAAA-MM-DD' real, desde hoy (Madrid) hasta dentro de 2 años; '' si no vale. */
+function validEventDate_(v) {
+  const m = typeof v === 'string' && /^(\d{4})-(\d{2})-(\d{2})$/.exec(v);
+  if (!m) return '';
+  const d = new Date(Date.UTC(+m[1], +m[2] - 1, +m[3]));
+  if (d.getUTCFullYear() !== +m[1] || d.getUTCMonth() !== +m[2] - 1 || d.getUTCDate() !== +m[3]) return '';
+  const t = todayUTC_(), max = new Date(Date.UTC(t.getUTCFullYear() + 2, t.getUTCMonth(), t.getUTCDate()));
+  return d >= t && d <= max ? v : '';
+}
+
+/**
+ * Recibe una propuesta de simulacro o gimnasio. Orden de validación: email → bots → tipo → nombre → organizador → provincia →
+ * localidad → fecha → url → mensaje → rol. Bots, duplicados y fallos del aviso por email responden {ok:true} (nunca se le dice
+ * al visitante que no llegó el aviso). No toca Suscriptores ni Envíos y no escribe nunca al proponente.
+ */
+function handleProposal_(req) {
+  const val = k => (req[k] === undefined || req[k] === null ? '' : req[k]);
+  const email = typeof req.email === 'string' ? req.email.trim().toLowerCase() : '';
+  if (email.length > PROP_LIMITS.email || !PROP_EMAIL_RE.test(email)) return { ok: false, error: 'email' };
+  // Bots: respondemos ok sin hacer nada. `!(x >= 3000)` rechaza también ms ausente o NaN.
+  if (req.hp) return { ok: true };
+  if (!(Number(req.ms) >= 3000)) return { ok: true };
+
+  const tipo = typeof req.tipo === 'string' ? req.tipo.trim().toLowerCase() : '';
+  if (PROP_TIPOS.indexOf(tipo) < 0) return { ok: false, error: 'tipo' };
+  const nombre = cleanLine_(val('nombre'), PROP_LIMITS.nombre);
+  if (!nombre) return { ok: false, error: 'nombre' };
+  const organizador = cleanLine_(val('organizador'), PROP_LIMITS.organizador);
+  if (organizador === null || (tipo === 'simulacro' && !organizador)) return { ok: false, error: 'organizador' };
+  const provincia = typeof req.provincia === 'string' ? provinceSlug_(req.provincia) : null;
+  if (!provincia) return { ok: false, error: 'provincia' };
+  const localidad = cleanLine_(val('localidad'), PROP_LIMITS.localidad);
+  if (!localidad) return { ok: false, error: 'localidad' };
+  let fecha_evento = '';
+  if (tipo === 'simulacro') { fecha_evento = validEventDate_(req.fecha_evento); if (!fecha_evento) return { ok: false, error: 'fecha' }; }
+  const web = typeof req.url === 'string' ? req.url.trim() : '';
+  if (web.length > PROP_LIMITS.url || !/^https?:\/\/[^\s\u0000-\u001F\u007F"<>]+$/i.test(web)) return { ok: false, error: 'url' };
+  const mensaje = cleanText_(val('mensaje'), PROP_LIMITS.mensaje);
+  if (mensaje === null) return { ok: false, error: 'mensaje' };
+  const rol = typeof req.rol === 'string' ? req.rol.trim().toLowerCase() : (val('rol') === '' ? '' : null);
+  if (rol === null || (rol && PROP_ROLES.indexOf(rol) < 0)) return { ok: false, error: 'rol' };
+  const destacado = tipo === 'simulacro' && req.destacado === true ? 'SI' : 'NO';
+  const origen = cleanLine_(String(val('origen')).slice(0, 40), 40) || '';
+  const version_aviso = req.aviso === B2B_AVISOS[tipo] ? req.aviso : ''; // desconocida o del otro tipo: se guarda vacía y se avisa
+
+  // Una clave por propuesta (60 s) y un límite propio (10/h) que no comparte contador con las altas (hr)
+  const cache = CacheService.getScriptCache();
+  const key = 'pb:' + tipo.charAt(0) + ':' + email + ':' + slug_(nombre).replace(/\s+/g, ' ').slice(0, 60); // < 250 caracteres
+  if (cache.get(key)) return { ok: true };
+  if (rateLimited_('hb', 10)) return { ok: false, error: 'busy' };
+  cache.put(key, '1', 60);
+
+  return withLock_(() => {
+    ensureHeader_(T.PROP); // hoja ausente o vacía: crea la cabecera antes de añadir la fila
+    const nslug = slug_(nombre).replace(/\s+/g, ' ');
+    const dup = table_(T.PROP).rows.find(r => String(r.email).toLowerCase() === email && r.tipo === tipo &&
+      slug_(r.nombre).replace(/\s+/g, ' ') === nslug && (!r.estado || r.estado === 'Nuevo' || r.estado === 'Verificada'));
+    if (dup) return { ok: true };
+    // Los prefijos «P» evitan que Sheets convierta el id en número. appendObj_ ya neutraliza las fórmulas (isRisky_).
+    const p = { id: 'P' + shortId_(), fecha: new Date(), tipo, nombre, organizador, email, provincia, localidad, fecha_evento,
+      web, mensaje, destacado, rol, origen, estado: 'Nuevo', notas: '', fecha_revision: '', notificada: '', version_aviso };
+    appendObj_(T.PROP, p);
+    if (!version_aviso) logError_('propuesta', 'Versión de aviso desconocida en ' + p.id);
+    notifyProposal_(p, lastRow_(T.PROP));
+    return { ok: true };
+  });
+}
+
+/** Destinatario del aviso: EMAIL_PROPUESTAS → CONTACT_EMAIL → cuenta de Google. Solo sale de la hoja Config, nunca de la petición.
+ *  OJO: cfg_() sustituye un CONTACT_EMAIL vacío por su valor por defecto (info@ritmohibrido.com); el tercer nivel solo se alcanza con un valor no vacío e inválido.
+ *  `warn`=true anota en el Registro un valor inválido (los chequeos del panel lo llaman con false). */
+function proposalRecipient_(warn) {
+  const c = cfg_();
+  const ok = v => typeof v === 'string' && v.length <= 120 && PROP_EMAIL_RE.test(v);
+  for (const k of ['EMAIL_PROPUESTAS', 'CONTACT_EMAIL']) {
+    const v = String(c[k] === undefined || c[k] === null ? '' : c[k]).trim();
+    if (!v) continue;
+    if (ok(v)) return v;
+    if (warn) logError_('propuesta', 'Config ' + k + ' no es un email válido');
+  }
+  try { const me = String(Session.getEffectiveUser().getEmail() || '').trim(); if (ok(me)) return me; } catch (e) { /* sin cuenta */ }
+  return '';
+}
+/** Enlace a la hoja Propuestas para el email, o '' si no se puede obtener (el email sale igual, sin el botón). */
+function sheetUrl_() {
+  try {
+    const ss = SpreadsheetApp.getActive(), u = String(ss.getUrl());
+    const sh = sheet_(T.PROP);
+    const gid = typeof sh.getSheetId === 'function' ? '#gid=' + sh.getSheetId() : '';
+    return /^https:\/\/docs\.google\.com\/[^\s"<>]*$/.test(u) ? u.replace(/#.*$/, '') + gid : '';
+  } catch (e) { return ''; }
+}
+function redact_(s) { return String(s || '').replace(/[^\s@,;<>"]+@[^\s@,;<>"]+/g, '[email]').slice(0, 200); }
+function proposalDailyCap_() { const n = Number(cfg_().PROPUESTAS_MAX_DIA); return isNaN(n) ? 20 : Math.max(0, Math.floor(n)); }
+
+/** Avisa al titular de una propuesta. Nunca escribe al proponente. Si no hay destinatario, cuota o tope diario, no envía:
+ *  la fila queda con `notificada` vacía, se anota en el Registro SOLO el id (jamás email ni nombre) y runDailyJob lo reintenta. */
+function notifyProposal_(p, row) {
+  if (toDate_(p.notificada)) return false;
+  const to = proposalRecipient_(true);
+  if (!to) { logError_('propuesta', 'Sin destinatario válido para avisar de ' + p.id); return false; }
+  if (canSendBudget_() <= 0) { logError_('propuesta', 'Sin cuota de email para avisar de ' + p.id); return false; }
+  const today = Utilities.formatDate(new Date(), TZ, 'yyyy-MM-dd');
+  const sentToday = table_(T.PROP).rows.filter(r => toDate_(r.notificada) && Utilities.formatDate(toDate_(r.notificada), TZ, 'yyyy-MM-dd') === today).length;
+  if (sentToday >= proposalDailyCap_()) { logError_('propuesta', 'Tope diario de avisos alcanzado: ' + p.id + ' queda sin avisar'); return false; }
+  try {
+    const m = proposalEmail_(p, sheetUrl_());
+    mail_(to, m.subject, m.html, { replyTo: p.email });
+    const now = new Date();
+    updateObj_(T.PROP, row, { notificada: now });
+    p.notificada = now;
+    return true;
+  } catch (err) {
+    logError_('propuesta', 'Fallo al enviar el aviso de ' + p.id + ': ' + redact_(err && err.message));
+    return false;
+  }
+}
+/** Reenvía los avisos pendientes de las propuestas Nuevas de los últimos 7 días (máx. 10 por ejecución). */
+function retryProposalNotices_() {
+  const limit = Date.now() - 7 * 864e5;
+  const pend = table_(T.PROP).rows.filter(r => !toDate_(r.notificada) && (!r.estado || r.estado === 'Nuevo') && toDate_(r.fecha) && +toDate_(r.fecha) > limit).slice(0, 10);
+  if (!pend.length) return;
+  if (canSendBudget_() <= 0) { logError_('propuesta', pend.length + ' propuestas siguen sin aviso por falta de cuota'); return; }
+  for (const p of pend) if (!notifyProposal_(p, p._row)) break; // sin destinatario, cuota o tope: no insiste con el resto
+}
+
+/**
+ * Menú (manual): vacía `email`, `mensaje` y `notas` de las propuestas ya resueltas hace más de 12 meses (Descartada, Publicada o
+ * Verificada, con `fecha_revision` anterior). Cumple el plazo de conservación de la política de privacidad. No borra filas y no
+ * toca id, fecha, tipo, nombre ni estado; las propuestas Nuevas (sin resolver) y las sin fecha_revision no se tocan. En el Registro
+ * solo queda el número de filas. Devuelve ese número.
+ */
+function purgeOldProposals() {
+  const limit = new Date(); limit.setMonth(limit.getMonth() - 12);
+  return withLock_(() => {
+    ensureHeader_(T.PROP);
+    const old = table_(T.PROP).rows.filter(r => ['Descartada', 'Publicada', 'Verificada'].indexOf(r.estado) >= 0 &&
+      toDate_(r.fecha_revision) && toDate_(r.fecha_revision) < limit && (String(r.email) !== '' || String(r.mensaje) !== '' || String(r.notas) !== ''));
+    old.forEach(r => updateObj_(T.PROP, r._row, { email: '', mensaje: '', notas: '' }));
+    logError_('propuestas', 'Purga de propuestas antiguas: ' + old.length + ' filas');
+    Logger.log('Propuestas vaciadas (email, mensaje y notas): ' + old.length);
+    try { SpreadsheetApp.getActive().toast('Propuestas vaciadas: ' + old.length); } catch (e) { /* sin interfaz */ }
+    return old.length;
+  });
 }
 
 // ---------------------------------------------------- Enlaces antiguos y baja
@@ -374,7 +579,8 @@ function handleConfirm_(req) {
     const sub = table_(T.SUBS).rows.find(s => s.token === t);
     if (!sub || sub.estado === 'Baja') return { ok: false, error: 'token' };
     if (sub.estado === 'Pendiente') {
-      const patch = { estado: 'Confirmado', marketing: 'SI', fecha_confirmacion: new Date(), consentimiento: CONSENT_VERSION };
+      const now = new Date();
+      const patch = { estado: 'Confirmado', marketing: 'SI', fecha_confirmacion: now, consentimiento: CONSENT_PLAN, consentimientos: addConsent_(sub, CONSENT_PLAN, now) };
       updateObj_(T.SUBS, sub._row, patch);
       Object.assign(sub, patch);
       sendPlan_(sub, sub._row);
@@ -397,7 +603,7 @@ function handleUnsub_(req) {
 // -------------------------------------------------------- Envío de campañas
 
 /**
- * Se ejecuta cada día (disparador). Reenvía los planes y las bienvenidas de avisos que no salieron (sin cuota), envía los emails de la secuencia
+ * Se ejecuta cada día (disparador). Reenvía los planes, las bienvenidas de avisos y los avisos de propuestas que no salieron (sin cuota), envía los emails de la secuencia
  * de bienvenida que toquen (van primero porque dependen del día exacto) y la campaña que toque.
  */
 function runDailyJob() {
@@ -406,6 +612,7 @@ function runDailyJob() {
     ensureSchema_();
     const retried = retryPlanEmails_();
     retryAlertsWelcome_();
+    try { retryProposalNotices_(); } catch (err) { logError_('propuestas', err); } // aislado: un fallo de propuestas no bloquea la secuencia ni las campañas
     sendSequence_(t0, retried);
     sendDueCampaign_(t0);
     setCfg_('ULTIMA_EJECUCION', new Date());
@@ -556,6 +763,16 @@ function sendSequence_(t0, skip) {
   if (log.length) sendsSh.getRange(sendsSh.getLastRow() + 1, 1, log.length, 4).setValues(log);
 }
 
+/** Escribe la cabecera de COLS en una hoja vacía (o añade las columnas que falten). Lo llaman setup y el manejador de propuestas. */
+function ensureHeader_(name) {
+  const sh = sheet_(name);
+  if (sh.getLastRow() === 0) {
+    sh.getRange(1, 1, 1, COLS[name].length).setValues([COLS[name]]).setFontWeight('bold').setBackground('#0E1013').setFontColor('#FFFFFF');
+    sh.setFrozenRows(1);
+  } else ensureColumns_(name);
+  return sh;
+}
+
 /** Añade al final de una hoja existente las columnas de COLS que le falten, sin tocar los datos. Una hoja vacía no se toca. */
 function ensureColumns_(name) {
   const sh = sheet_(name);
@@ -603,6 +820,18 @@ function sendTestAlertsWelcome() {
   Logger.log('Bienvenida de avisos de prueba enviada a ' + me);
 }
 
+/** Menú: manda a tu cuenta (no al destinatario de Config) un aviso de propuesta con datos de ejemplo. No toca ninguna hoja. */
+function sendTestProposal() {
+  const me = Session.getEffectiveUser().getEmail();
+  const m = proposalEmail_({
+    id: 'PPRUEBA', fecha: new Date(), tipo: 'simulacro', nombre: 'Simulacro de ejemplo', organizador: 'Club de ejemplo', email: me,
+    provincia: 'sevilla', localidad: 'Dos Hermanas · Pabellón', fecha_evento: Utilities.formatDate(new Date(Date.now() + 30 * 864e5), TZ, 'yyyy-MM-dd'),
+    web: 'https://example.com/simulacro', mensaje: 'Mensaje de ejemplo.\nSegunda línea.', rol: 'titular', destacado: 'SI',
+  }, sheetUrl_());
+  mail_(me, '[PRUEBA] ' + m.subject, m.html, { replyTo: me });
+  Logger.log('Aviso de propuesta de prueba enviado a ' + me);
+}
+
 // -------------------------------------------------------- Menú y utilidades
 
 function onOpen() {
@@ -611,14 +840,17 @@ function onOpen() {
     .addItem('Enviar email de prueba a mi cuenta', 'sendTestCampaign')
     .addItem('Enviarme la secuencia de bienvenida (prueba)', 'sendTestSequence')
     .addItem('Enviarme el email de bienvenida de avisos (prueba)', 'sendTestAlertsWelcome')
+    .addItem('Enviarme un aviso de propuesta (prueba)', 'sendTestProposal')
     .addItem('Ejecutar el envío ahora', 'runDailyJob')
+    .addItem('Borrar emails de propuestas antiguas', 'purgeOldProposals')
     .addToUi();
 }
 
-/** Cuando un contacto pasa a "Cerrado" se rellenan la fecha de cierre y la comisión por defecto. */
+/** Cuando un contacto pasa a "Cerrado" se rellenan la fecha de cierre y la comisión por defecto. En Propuestas, la fecha de revisión. */
 function onEdit(e) {
   try {
     const sh = e.range.getSheet();
+    if (sh.getName() === T.PROP) { propEdit_(e, sh); return; }
     if (sh.getName() !== T.LEADS || e.range.getRow() < 2) return;
     const head = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0];
     if (e.range.getColumn() !== head.indexOf('estado') + 1 || String(e.value) !== 'Cerrado') return;
@@ -628,6 +860,16 @@ function onEdit(e) {
     if (!cF.getValue()) cF.setValue(new Date());
     if (cC.getValue() === '') cC.setValue(Number(cfg_().COMISION_CIERRE || 0));
   } catch (err) { /* un onEdit nunca debe molestar al editar */ }
+}
+
+/** Al pasar una propuesta a Verificada, Publicada o Descartada se rellena la fecha de revisión (sin pisar una que ya exista). */
+function propEdit_(e, sh) {
+  if (e.range.getRow() < 2) return;
+  const head = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0];
+  if (e.range.getColumn() !== head.indexOf('estado') + 1) return;
+  if (['Verificada', 'Publicada', 'Descartada'].indexOf(String(e.value)) < 0) return;
+  const c = sh.getRange(e.range.getRow(), head.indexOf('fecha_revision') + 1);
+  if (!c.getValue()) c.setValue(new Date());
 }
 
 function sendTestCampaign() {
@@ -643,14 +885,7 @@ function setup() {
   const ss = SpreadsheetApp.getActive();
   ss.setSpreadsheetTimeZone(TZ);
 
-  Object.keys(COLS).forEach(name => {
-    const sh = sheet_(name);
-    if (sh.getLastRow() === 0) {
-      sh.getRange(1, 1, 1, COLS[name].length).setValues([COLS[name]])
-        .setFontWeight('bold').setBackground('#0E1013').setFontColor('#FFFFFF');
-      sh.setFrozenRows(1);
-    }
-  });
+  Object.keys(COLS).forEach(ensureHeader_);
 
   const cfg = sheet_(T.CFG);
   if (cfg.getLastRow() === 0) {
@@ -668,6 +903,14 @@ function setup() {
   list(T.LEADS, 'estado', ['Nuevo', 'Contactado', 'Cerrado', 'Descartado']);
   list(T.CAMP, 'estado', ['Borrador', 'Programada', 'En curso', 'Enviada']);
   list(T.CAMP, 'publi_activa', ['SI', 'NO']);
+  // Propuestas: solo desplegables (requireValueInList). Nada de validaciones con fórmula (REGEXMATCH no vale en la hoja del usuario).
+  list(T.PROP, 'estado', PROP_ESTADOS);
+  list(T.PROP, 'tipo', PROP_TIPOS);
+  // Texto plano en las columnas que escribe el visitante (también cubre lo que no parece una fórmula pero Sheets convertiría, p. ej. fechas)
+  // El rango se limita a las filas que tiene la hoja (una hoja nueva trae 1000): formatear fuera de ellas puede dar error.
+  const propSh = sheet_(T.PROP);
+  const propRows = Math.max(1, Math.min(4999, (typeof propSh.getMaxRows === 'function' ? propSh.getMaxRows() : 1000) - 1));
+  PROP_TEXT_COLS.forEach(col => propSh.getRange(2, COLS[T.PROP].indexOf(col) + 1, propRows, 1).setNumberFormat('@'));
 
   // segmento_interes admite una lista separada por comas, así que no sirve un desplegable (requireValueInList). Tampoco una
   // validación con fórmula: Google Sheets la rechaza según el idioma de la hoja. Se explica en la nota de la cabecera y un valor

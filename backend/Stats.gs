@@ -11,6 +11,7 @@ function handleStats_(req) {
     camps: table_(T.CAMP).rows,
     sends: table_(T.SENDS).rows,
     log: table_(T.LOG).rows,
+    props: table_(T.PROP).rows,
     cfg: cfg_(),
   };
   const stats = buildStats_(d, new Date());
@@ -50,6 +51,11 @@ function buildStats_(d, nowDate) {
   const sum = rows => rows.reduce((t, r) => t + (Number(r.comision) || 0), 0);
 
   const subs = d.subs, leads = d.leads, camps = d.camps;
+  // Propuestas B2B: solo recuentos (nada de emails ni nombres). Pendiente = Nuevo o sin estado; el detalle por tipo y el destacado, solo entre pendientes.
+  const props = d.props || [];
+  const pend = props.filter(p => !p.estado || p.estado === 'Nuevo');
+  const propuestas = { pendientes: pend.length, simulacros: pend.filter(p => p.tipo === 'simulacro').length,
+    gimnasios: pend.filter(p => p.tipo === 'gimnasio').length, destacado: pend.filter(p => p.destacado === 'SI').length, total: props.length };
   const sendsOk = d.sends.filter(r => r.resultado === 'OK');
   const active = subs.filter(s => s.estado === 'Confirmado');
   // Quienes pidieron el plan (lead plan o vacío) frente a las altas de solo alertas
@@ -169,7 +175,7 @@ function buildStats_(d, nowDate) {
 
   return {
     generado: nowDate.toISOString(),
-    kpis, semanas, embudo, provincias, ciudades: provincias, carreras, origenes, emails, secuencia, // `ciudades`: copia para el panel antiguo
+    kpis, semanas, embudo, provincias, ciudades: provincias, carreras, origenes, emails, secuencia, propuestas, // `ciudades`: copia para el panel antiguo
     porLead: {
       plan: { registros: planSubs.length, activos: activePlan.length },
       alertas: { registros: subs.length - planSubs.length, activos: active.length - activePlan.length },
@@ -187,6 +193,7 @@ function systemInfo_(d) {
     { k: 'Disparador diario de envíos', ok: triggers.indexOf('runDailyJob') >= 0, msg: 'Falta: ejecuta "setup" otra vez' },
     { k: 'Contraseña del panel', ok: !!PropertiesService.getScriptProperties().getProperty('PANEL_PASSWORD'), msg: 'Falta PANEL_PASSWORD' },
     { k: 'URL de la web', ok: /^https:\/\//.test(cfg.SITE_URL || ''), msg: 'Config > SITE_URL debe empezar por https://' },
+    { k: 'Aviso de propuestas', ok: !!proposalRecipient_(false), msg: 'Config > EMAIL_PROPUESTAS / CONTACT_EMAIL no es un email válido' },
   ];
   // sinEmailPlan: solo cuentan quienes pidieron el plan (las altas de alertas no reciben el PDF)
   const sinPlan = d.subs.filter(s => s.estado === 'Confirmado' && wantsPlan_(s) && !Number(s.emails_confirmacion || 0));
@@ -198,8 +205,10 @@ function systemInfo_(d) {
     ultimaEjecucion: toDate_(cfg.ULTIMA_EJECUCION) ? toDate_(cfg.ULTIMA_EJECUCION).toISOString() : null,
     sinEmailPlan: sinPlan.length,
     sinBienvenida: sinBienvenida.length,
+    // propuestasSinAviso: propuestas Nuevas a las que aún no ha salido el aviso al titular (se reintenta cada día durante 7 días)
+    propuestasSinAviso: (d.props || []).filter(p => (!p.estado || p.estado === 'Nuevo') && !toDate_(p.notificada)).length,
     checks,
-    filas: { suscriptores: d.subs.length, contactos: d.leads.length, campanas: d.camps.length, envios: d.sends.length },
+    filas: { suscriptores: d.subs.length, contactos: d.leads.length, campanas: d.camps.length, envios: d.sends.length, propuestas: (d.props || []).length },
     errores: d.log.filter(r => toDate_(r.fecha) && +toDate_(r.fecha) > week).slice(-15).reverse()
       .map(r => ({ fecha: Utilities.formatDate(toDate_(r.fecha), TZ, 'dd/MM HH:mm'), origen: r.origen, detalle: r.detalle })),
   };

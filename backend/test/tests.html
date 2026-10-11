@@ -17,6 +17,7 @@ class Sheet {
   getDataRange() { return this.getRange(1, 1, Math.max(1, this.getLastRow()), Math.max(1, this.getLastColumn())); }
   appendRow(a) { this.rows.push(a.slice()); }
   getRange(r, c, nr = 1, nc = 1) { return rangeProxy(new Range(this, r, c, nr, nc)); }
+  getSheetId() { return 7; }
   setFrozenRows() {} setColumnWidth() {}
 }
 class Range {
@@ -32,10 +33,12 @@ const rangeProxy = r => (r._self = new Proxy(r, { get: (t, k) => (k in t ? (type
 
 const G = {
   sheets: {}, sent: [], quota: 100, props: {}, cache: {}, triggers: [], now: null,
-  reset() { this.sheets = {}; this.sent = []; this.quota = 100; this.props = {}; this.cache = {}; this.triggers = []; },
+  me: 'ritmo@example.com', meThrows: false, urlFails: false,
+  reset() { this.sheets = {}; this.sent = []; this.quota = 100; this.props = {}; this.cache = {}; this.triggers = []; this.failFor = null; this.me = 'ritmo@example.com'; this.meThrows = false; this.urlFails = false; },
 };
 const SpreadsheetApp = {
   getActive: () => ({
+    getUrl() { if (G.urlFails) throw new Error('sin permiso'); return 'https://docs.google.com/spreadsheets/d/TEST/edit'; },
     setSpreadsheetTimeZone() {},
     getSheetByName: n => G.sheets[n] || null,
     insertSheet: n => (G.sheets[n] = new Sheet(n)),
@@ -46,7 +49,7 @@ const SpreadsheetApp = {
 };
 const MailApp = {
   getRemainingDailyQuota: () => G.quota - G.sent.length,
-  sendEmail(o) { if (G.failFor && o.to === G.failFor) throw new Error('Dirección inválida'); G.sent.push(o); },
+  sendEmail(o) { if (G.failFor && o.to === G.failFor) throw new Error('Dirección inválida: ' + o.to); G.sent.push(o); },
 };
 const Utilities = {
   getUuid: () => crypto.randomUUID(),
@@ -64,7 +67,7 @@ const ScriptApp = {
   deleteTrigger() { G.triggers = []; },
   newTrigger: h => ({ timeBased: () => ({ everyDays: () => ({ atHour: () => ({ create() { G.triggers.push(h); } }) }) }) }),
 };
-const Session = { getEffectiveUser: () => ({ getEmail: () => 'ritmo@example.com' }) };
+const Session = { getEffectiveUser: () => { if (G.meThrows) throw new Error('sin cuenta'); return { getEmail: () => G.me }; } };
 const Logger = { log() {} };
 
 /* ----------------------------------- Carga de los .gs ----------------------------------- */
@@ -90,7 +93,7 @@ async function run() {
   G.reset();
   setup();
   const cfgSheet = G.sheets['Config'];
-  check('setup crea las 6 hojas', ['Suscriptores', 'Contactos', 'Campañas', 'Envíos', 'Config', 'Registro'].every(n => G.sheets[n]));
+  check('setup crea las 7 hojas', ['Suscriptores', 'Contactos', 'Campañas', 'Envíos', 'Config', 'Registro', 'Propuestas'].every(n => G.sheets[n]));
   check('setup crea disparador diario y contraseña', G.triggers.join() === 'runDailyJob' && G.props.PANEL_PASSWORD && G.props.PANEL_PASSWORD.length >= 12);
   check('setup crea campaña de ejemplo en Borrador', table_(T.CAMP).rows.length === 1 && table_(T.CAMP).rows[0].estado === 'Borrador');
   const before = G.props.PANEL_PASSWORD; setup();
@@ -353,20 +356,20 @@ async function run() {
   const oldCfg = SpreadsheetApp.getActive().insertSheet('Config');
   oldCfg.appendRow(['clave', 'valor', 'nota']); CFG_DEFAULTS.filter(([k]) => k.indexOf('SECUENCIA') < 0).forEach(r => oldCfg.appendRow(r));
   runDailyJob();
-  check('hoja de una versión anterior: añade columnas y ajustes nuevos sin perder datos, y la secuencia funciona', old.rows[0].slice(13).join() === 'secuencia,fecha_secuencia,intereses,lead,bienvenida' && old.rows[1][2] === 'vieja@example.com' && cfg_().SECUENCIA_ACTIVA === 'SI' && G.sent.some(m => m.to === 'vieja@example.com'), JSON.stringify(old.rows[0]));
+  check('hoja de una versión anterior: añade columnas y ajustes nuevos sin perder datos, y la secuencia funciona', old.rows[0].slice(13).join() === 'secuencia,fecha_secuencia,intereses,lead,bienvenida,consentimientos' && old.rows[1][2] === 'vieja@example.com' && cfg_().SECUENCIA_ACTIVA === 'SI' && G.sent.some(m => m.to === 'vieja@example.com'), JSON.stringify(old.rows[0]));
 
   // --- Altas de alertas y de plan: `lead` e `intereses`
   G.reset(); setup();
   const free = () => { clearThrottle(); delete G.cache.hr; }; // olvida el antiabuso de 1 min por email y el contador de 40 altas/hora
   const subBy2 = e => subs().find(s => s.email === e);
   const recent = d => d instanceof Date && Math.abs(Date.now() - +d) < 6e4;
-  check('CONSENT_VERSION es 2026-10-v4', CONSENT_VERSION === '2026-10-v4');
-  check('COLS y la cabecera de Suscriptores terminan en intereses,lead,bienvenida', COLS['Suscriptores'].slice(-3).join() === 'intereses,lead,bienvenida' && G.sheets['Suscriptores'].rows[0].slice(-3).join() === 'intereses,lead,bienvenida', G.sheets['Suscriptores'].rows[0].join());
+  check('v5: una etiqueta por texto (plan 2026-10-v5-plan, avisos 2026-10-v5-alertas) y CONSENT_VERSION es el alias del plan', CONSENT_PLAN === '2026-10-v5-plan' && CONSENT_ALERTAS === '2026-10-v5-alertas' && CONSENT_VERSION === CONSENT_PLAN);
+  check('COLS y la cabecera de Suscriptores terminan en intereses,lead,bienvenida,consentimientos', COLS['Suscriptores'].slice(-4).join() === 'intereses,lead,bienvenida,consentimientos' && G.sheets['Suscriptores'].rows[0].slice(-4).join() === 'intereses,lead,bienvenida,consentimientos', G.sheets['Suscriptores'].rows[0].join());
 
   free(); r = post(form({ email: 'p0@example.com' }));
   const p0 = subBy2('p0@example.com');
-  check('alta sin lead (web en caché): cuenta como plan, envía el PDF, responde con el plan y guarda el consentimiento v4',
-    r.ok === true && /\.pdf$/.test(r.plan) && p0.lead === 'plan' && G.sent.length === 1 && G.sent[0].to === 'p0@example.com' && p0.consentimiento === '2026-10-v4' && Number(p0.emails_confirmacion) === 1, JSON.stringify([r, p0.lead]));
+  check('alta sin lead (web en caché): cuenta como plan, envía el PDF, responde con el plan y guarda el consentimiento v5 del plan',
+    r.ok === true && /\.pdf$/.test(r.plan) && p0.lead === 'plan' && G.sent.length === 1 && G.sent[0].to === 'p0@example.com' && p0.consentimiento === CONSENT_PLAN && Number(p0.emails_confirmacion) === 1, JSON.stringify([r, p0.lead]));
   const planMail = G.sent[0].htmlBody;
   check('el email del plan menciona comunicaciones comerciales, centros colaboradores y que no se ceden los datos', /comerciales/.test(planMail) && /centros colaboradores/.test(planMail) && /sin que cedamos tus datos/.test(planMail) && /no has sido tú/.test(planMail));
   free(); r = post(form({ email: 'p1@example.com', lead: 'plan', intereses: ['carreras'] }));
@@ -382,8 +385,8 @@ async function run() {
     wm.to === 'al@example.com' && /avisos/.test(wm.subject) && wm.htmlBody.includes('/baja/?t=' + al.token) && wm.body.includes('/baja/?t=' + al.token) && wm.htmlBody.includes('Sevilla') && wm.htmlBody.includes('carreras') && !/\.pdf/.test(wm.htmlBody + wm.body), wm.subject);
   check('alta de alertas: bienvenida anotada (fecha), emails_confirmacion sigue en 0 y no se escribe nada en Envíos',
     al.bienvenida instanceof Date && recent(al.bienvenida) && Number(al.emails_confirmacion) === 0 && table_(T.SENDS).rows.length === 0, JSON.stringify(al));
-  check('alta de alertas: queda Confirmado, con marketing SI, token, consentimiento v4, lead alertas, intereses y sin carrera (se ignora aunque el formulario mande una)',
-    al.estado === 'Confirmado' && al.marketing === 'SI' && /^[a-f0-9]{32}$/.test(al.token) && al.consentimiento === '2026-10-v4' && recent(al.fecha_confirmacion) && al.lead === 'alertas' && Number(al.emails_confirmacion) === 0 && al.intereses === 'carreras' && al.carrera === '', JSON.stringify(al));
+  check('alta de alertas: queda Confirmado, con marketing SI, token, consentimiento v5 de los avisos, lead alertas, intereses y sin carrera (se ignora aunque el formulario mande una)',
+    al.estado === 'Confirmado' && al.marketing === 'SI' && /^[a-f0-9]{32}$/.test(al.token) && al.consentimiento === CONSENT_ALERTAS && recent(al.fecha_confirmacion) && al.lead === 'alertas' && Number(al.emails_confirmacion) === 0 && al.intereses === 'carreras' && al.carrera === '', JSON.stringify(al));
 
   const nSubsL = subs().length, nSentL = G.sent.length;
   const badLeads = ['premium', 'constructor', '__proto__', '', ['plan'], {}, 5];
@@ -442,7 +445,7 @@ async function run() {
   updateObj_(T.SUBS, subBy2('v3@example.com')._row, { consentimiento: '2026-10-v3', fecha_confirmacion: daysAgo(30) });
   free(); post(form({ email: 'v3@example.com', lead: 'alertas' }));
   const v3 = subBy2('v3@example.com');
-  check('un Confirmado con una versión antigua del texto actualiza consentimiento y fecha_confirmacion al repetir el alta', v3.consentimiento === '2026-10-v4' && recent(v3.fecha_confirmacion), JSON.stringify(v3));
+  check('un Confirmado que no había aceptado este texto (el de los avisos) actualiza consentimiento y fecha_confirmacion al repetir el alta', v3.consentimiento === CONSENT_ALERTAS && recent(v3.fecha_confirmacion), JSON.stringify(v3));
   const day5 = daysAgo(5);
   updateObj_(T.SUBS, v3._row, { fecha_confirmacion: day5 });
   free(); post(form({ email: 'v3@example.com' }));
@@ -465,10 +468,10 @@ async function run() {
   old2.appendRow(['x1', daysAgo(3), 'vieja2@example.com', 'sevilla', 'malaga', '/', 'Confirmado', 'SI', daysAgo(3), 'v3', '', 'c'.repeat(32), 1]);
   r = post(form({ email: 'nueva@example.com', lead: 'alertas', intereses: ['simulacros'] }));
   check('hoja de 13 columnas + alta de alertas sin ensureSchema_ previo: añade las columnas (también bienvenida), guarda lead e intereses, manda 1 email (la bienvenida) y no pierde la fila vieja',
-    r.ok && old2.rows[0].slice(13).join() === 'secuencia,fecha_secuencia,intereses,lead,bienvenida' && subBy2('nueva@example.com').lead === 'alertas' && subBy2('nueva@example.com').intereses === 'simulacros' && G.sent.length === 1 && G.sent[0].to === 'nueva@example.com' && subBy2('nueva@example.com').bienvenida instanceof Date && subs().length === 2 && subBy2('vieja2@example.com').token === 'c'.repeat(32), JSON.stringify(old2.rows[0]));
+    r.ok && old2.rows[0].slice(13).join() === 'secuencia,fecha_secuencia,intereses,lead,bienvenida,consentimientos' && subBy2('nueva@example.com').lead === 'alertas' && subBy2('nueva@example.com').intereses === 'simulacros' && G.sent.length === 1 && G.sent[0].to === 'nueva@example.com' && subBy2('nueva@example.com').bienvenida instanceof Date && subs().length === 2 && subBy2('vieja2@example.com').token === 'c'.repeat(32), JSON.stringify(old2.rows[0]));
   free(); post(form({ email: 'vieja2@example.com', lead: 'alertas', intereses: ['gimnasios'] }));
   const v2 = subBy2('vieja2@example.com');
-  check('alertas sobre una fila antigua (lead vacío = plan): queda como plan, guarda los intereses, re-consiente con el texto v4 y no manda ningún email más', v2.lead === 'plan' && v2.intereses === 'gimnasios' && v2.consentimiento === '2026-10-v4' && G.sent.length === 1 && v2.bienvenida === '', JSON.stringify(v2));
+  check('alertas sobre una fila antigua (lead vacío = plan): queda como plan, guarda los intereses, re-consiente con el texto v5 de los avisos y no manda ningún email más', v2.lead === 'plan' && v2.intereses === 'gimnasios' && v2.consentimiento === CONSENT_ALERTAS && G.sent.length === 1 && v2.bienvenida === '', JSON.stringify(v2));
 
   G.reset(); setup();
   const shS = G.sheets['Suscriptores'], shC = G.sheets['Config'];
@@ -676,12 +679,426 @@ async function run() {
     check('menú: la bienvenida de avisos de prueba va solo a tu cuenta, marcada como prueba y sin tocar la hoja', G.sent.length === 1 && G.sent[0].to === 'ritmo@example.com' && /^\[PRUEBA\] Ya estás apuntado/.test(G.sent[0].subject) && G.sent[0].htmlBody.includes('<strong>Sevilla</strong>') && subs().length === nSubsM && table_(T.SENDS).rows.length === 0);
   }
 
+  // --- Fase 2: propuestas B2B (acción `propuesta`), aviso al titular, purga y consentimiento v5
+  {
+    const EXPC = 'id,fecha,tipo,nombre,organizador,email,provincia,localidad,fecha_evento,web,mensaje,destacado,rol,origen,estado,notas,fecha_revision,notificada,version_aviso';
+    const ymdPlus = n => Utilities.formatDate(new Date(Date.now() + n * 864e5), TZ, 'yyyy-MM-dd');
+    const plus2y = k => { const t = todayUTC_(); return new Date(Date.UTC(t.getUTCFullYear() + 2, t.getUTCMonth(), t.getUTCDate() + k)).toISOString().slice(0, 10); };
+    const prop = (o = {}) => Object.assign({ action: 'propuesta', tipo: 'simulacro', nombre: 'Simulacro de prueba', organizador: 'Club Ejemplo', email: 'ana@example.com', provincia: 'sevilla', localidad: 'Dos Hermanas · Pabellón', fecha_evento: ymdPlus(30), url: 'https://example.com/simulacro', mensaje: '', rol: 'titular', destacado: false, aviso: B2B_AVISOS.simulacro, hp: '', ms: 5000, origen: '/simulacros' }, o);
+    const gprop = (o = {}) => prop(Object.assign({ tipo: 'gimnasio', nombre: 'Box de prueba', organizador: '', fecha_evento: '', aviso: B2B_AVISOS.gimnasio, origen: '/gimnasios' }, o));
+    const propRows = () => table_(T.PROP).rows;
+    const freeP = () => { Object.keys(G.cache).filter(k => k.startsWith('pb:')).forEach(k => delete G.cache[k]); delete G.cache.hb; };
+    const fresh = () => { G.reset(); setup(); G.sent = []; };
+    const addP = (o = {}) => appendObj_(T.PROP, Object.assign({ id: 'P' + shortId_(), fecha: new Date(), tipo: 'simulacro', nombre: 'N', organizador: 'O', email: 'x@example.com', provincia: 'sevilla', localidad: 'L', fecha_evento: ymdPlus(10), web: 'https://example.com', mensaje: '', destacado: 'NO', rol: '', origen: '/', estado: 'Nuevo', notas: '', fecha_revision: '', notificada: '', version_aviso: B2B_AVISOS.simulacro }, o));
+    const regP = o => (G.sheets['Registro'] ? G.sheets['Registro'].rows.slice(1) : []).filter(x => !o || x[1] === o);
+    const statsP = () => post({ action: 'stats', password: G.props.PANEL_PASSWORD }).stats;
+    const snap = () => JSON.stringify(Object.keys(G.sheets).map(k => [k, G.sheets[k].rows]));
+    const okJ = JSON.stringify({ ok: true });
+    let nn = 0; const nm = () => 'Evento ' + (++nn);
+    const errsOf = (key, list, base) => list.map(v => { freeP(); return post(prop(Object.assign({}, base, { [key]: v }))).error; });
+    const allBad = (key, list, err, base) => errsOf(key, list, base).every(e => e === err);
+    const hrefs = html => [...html.matchAll(/href="([^"]*)"/g)].map(m => m[1].replace(/&amp;/g, '&'));
+    const SHEET_LINK = 'https://docs.google.com/spreadsheets/d/TEST/edit#gid=7';
+    const monthsAgo = n => { const d = new Date(); d.setMonth(d.getMonth() - n); return d; };
+
+    // A. Esquema y hojas
+    fresh();
+    const cfgKeys = table_(T.CFG).rows.map(x => x.clave);
+    check('A1 Propuestas: T.PROP, COLS y cabecera en el orden del contrato; setup añade EMAIL_PROPUESTAS (vacío) y PROPUESTAS_MAX_DIA (20) a Config',
+      T.PROP === 'Propuestas' && COLS['Propuestas'].join() === EXPC && G.sheets['Propuestas'].rows[0].join() === EXPC && cfgKeys.includes('EMAIL_PROPUESTAS') && cfgKeys.includes('PROPUESTAS_MAX_DIA') && cfg_().EMAIL_PROPUESTAS === '' && String(cfg_().PROPUESTAS_MAX_DIA) === '20', G.sheets['Propuestas'].rows[0].join());
+    G.reset(); SpreadsheetApp.getActive().insertSheet('Propuestas');
+    r = post(prop());
+    check('A2 hoja Propuestas vacía preexistente (sin cabecera): la primera propuesta escribe la cabecera y guarda 1 fila legible',
+      r.ok === true && G.sheets['Propuestas'].rows[0].join() === EXPC && propRows().length === 1 && propRows()[0].nombre === 'Simulacro de prueba' && propRows()[0].estado === 'Nuevo', JSON.stringify(G.sheets['Propuestas'].rows));
+    G.reset();
+    r = post(prop());
+    check('A3 sin hoja Propuestas ni setup: la propuesta crea la hoja con cabecera y 1 fila, sin tocar Suscriptores',
+      r.ok === true && G.sheets['Propuestas'] && G.sheets['Propuestas'].rows[0].join() === EXPC && propRows().length === 1 && !G.sheets['Suscriptores']);
+    fresh(); post(prop()); post(prop({ nombre: 'Otro simulacro' }));
+    const sigP = () => JSON.stringify([G.sheets['Propuestas'].rows, G.sheets['Config'].rows, G.sheets['Suscriptores'].rows[0]]);
+    const sp0 = sigP(); setup(); const sp1 = sigP(); ensureSchema_(); ensureSchema_(); const sp2 = sigP();
+    check('A4 setup() repetido con propuestas guardadas no duplica cabecera ni toca filas; ensureSchema_ idempotente (firma antes y después)',
+      sp0 === sp1 && sp1 === sp2 && G.sheets['Propuestas'].rows.length === 3 && G.sheets['Propuestas'].rows[0].join() === EXPC);
+    G.reset();
+    const oc3 = SpreadsheetApp.getActive().insertSheet('Config');
+    oc3.appendRow(['clave', 'valor', 'nota']);
+    CFG_DEFAULTS.filter(([k]) => !/PROPUESTAS/.test(k)).forEach(([k, v, n]) => oc3.appendRow([k, k === 'SITE_URL' ? 'https://mi-sitio.example' : v, n]));
+    const oc3Rows = JSON.stringify(oc3.rows); const oc3N = oc3.rows.length;
+    ensureSchema_();
+    check('A5 Config antigua sin las claves nuevas: ensureSchema_ añade EMAIL_PROPUESTAS y PROPUESTAS_MAX_DIA sin tocar los valores existentes',
+      JSON.stringify(oc3.rows.slice(0, oc3N)) === oc3Rows && cfg_().SITE_URL === 'https://mi-sitio.example' && oc3.rows.some(x => x[0] === 'EMAIL_PROPUESTAS') && oc3.rows.some(x => x[0] === 'PROPUESTAS_MAX_DIA' && String(x[1]) === '20'));
+
+    // B. Propuesta válida
+    fresh();
+    r = post(prop({ email: ' Ana@Example.COM ', provincia: 'bilbao', destacado: true, nombre: '  Simulacro   de prueba ' }));
+    const b1 = propRows()[0] || {};
+    check('B1 simulacro válido: {ok:true}, 1 fila Nuevo con campos normalizados (email en minúsculas, provincia en slug, destacado SI, versión del aviso, id P…, fechas)',
+      JSON.stringify(r) === okJ && propRows().length === 1 && b1.estado === 'Nuevo' && b1.email === 'ana@example.com' && b1.provincia === 'bizkaia' && b1.destacado === 'SI' && b1.version_aviso === B2B_AVISOS.simulacro &&
+      /^P[0-9a-f]{8}$/.test(b1.id) && b1.fecha instanceof Date && b1.notificada instanceof Date && b1.nombre === 'Simulacro de prueba' && b1.tipo === 'simulacro' && b1.web === 'https://example.com/simulacro' &&
+      b1.fecha_evento === ymdPlus(30) && b1.rol === 'titular' && b1.origen === '/simulacros' && b1.fecha_revision === '' && b1.organizador === 'Club Ejemplo', JSON.stringify(b1));
+    post(gprop({ fecha_evento: ymdPlus(30), destacado: true }));
+    const g2 = gprop({ nombre: 'Box sin organizador' }); delete g2.organizador; const rg2 = post(g2);
+    const bg = propRows()[1] || {}, bg2 = propRows()[2] || {};
+    check('B2 gimnasio: fecha_evento vacía aunque se mande, destacado NO aunque se mande true, organizador opcional (vacío o ausente), aviso del gimnasio',
+      bg.tipo === 'gimnasio' && bg.fecha_evento === '' && bg.destacado === 'NO' && bg.organizador === '' && bg.version_aviso === B2B_AVISOS.gimnasio && rg2.ok === true && bg2.organizador === '' && bg2.fecha_evento === '', JSON.stringify([bg, bg2]));
+    check('B3 una propuesta no escribe en Suscriptores, Envíos ni Contactos, y la hoja no tiene token',
+      subs().length === 0 && G.sheets['Suscriptores'].rows.length === 1 && table_(T.SENDS).rows.length === 0 && table_(T.LEADS).rows.length === 0 && !COLS['Propuestas'].includes('token'));
+    fresh(); post(prop());
+    const mP = G.sent[0] || {};
+    const nSent4 = G.sent.length;
+    freeP(); G.sent = []; post(prop({ nombre: 'N'.repeat(100) })); const mLong = G.sent[0] || {};
+    freeP(); G.sent = []; post(gprop()); const mGym = G.sent[0] || {};
+    check('B4 exactamente 1 correo, su `to` es el titular (CONTACT_EMAIL), ninguno al proponente, sin cc/bcc; asunto [Propuesta] Simulacro: nombre; nombre largo truncado a 60 + «…»',
+      nSent4 === 1 && mP.to === 'info@ritmohibrido.com' && !('cc' in mP) && !('bcc' in mP) && mP.subject === '[Propuesta] Simulacro: Simulacro de prueba' &&
+      mLong.subject === '[Propuesta] Simulacro: ' + 'N'.repeat(60) + '…' && mGym.subject === '[Propuesta] Gimnasio: Box de prueba' && ![mP, mLong, mGym].some(m => m.to === 'ana@example.com'), JSON.stringify([mP.to, mP.subject, mLong.subject]));
+    fresh();
+    free(); post(form({ email: 'ana@example.com' }));
+    seqSub('baja9@example.com', { estado: 'Baja', marketing: 'NO' });
+    const subSnap = JSON.stringify(subs()); G.sent = [];
+    post(prop({ email: 'ana@example.com' })); post(prop({ email: 'baja9@example.com', nombre: 'Otro evento' }));
+    check('B5 un proponente que ya es suscriptor (Confirmado o de baja) no cambia su fila ni recibe nada: los 2 avisos van al titular',
+      JSON.stringify(subs()) === subSnap && G.sent.length === 2 && G.sent.every(m => m.to === 'info@ritmohibrido.com') && propRows().length === 2);
+    fresh();
+    post(prop()); const plain6 = G.sent[0];
+    setCfg_('REPLY_TO', 'contacto@example.com'); freeP(); G.sent = [];
+    post(prop({ nombre: 'Con reply-to' })); const withCfg6 = G.sent[0];
+    free(); G.sent = []; post(form({ email: 'planreply@example.com' })); const planMail6 = G.sent[0];
+    G.sent = []; sendTestAlertsWelcome(); const welcome6 = G.sent[0];
+    check('B6 replyTo del aviso = email del proponente (también con REPLY_TO en Config); el resto de usos de mail_ (plan, bienvenida) siguen con REPLY_TO o sin replyTo',
+      plain6.replyTo === 'ana@example.com' && withCfg6.replyTo === 'ana@example.com' && planMail6.replyTo === 'contacto@example.com' && welcome6.replyTo === 'contacto@example.com');
+    fresh();
+    post(prop({ mensaje: 'Hola\nsegunda línea' })); const m7 = G.sent[0], web7 = 'https://example.com/simulacro';
+    const hr7 = hrefs(m7.htmlBody);
+    check('B7 contenido del aviso: tabla etiqueta/valor, texto plano «Nombre: …», sin /baja/, sin «Darme de baja» ni «Política de privacidad», enlaces solo la web y la hoja',
+      /Nombre: Simulacro de prueba/.test(m7.body) && /Email del proponente: ana@example\.com/.test(m7.body) && /Localidad: Dos Hermanas · Pabellón/.test(m7.body) && /Provincia: Sevilla/.test(m7.body) &&
+      m7.htmlBody.includes('<table') && !/\/baja\//.test(m7.htmlBody + m7.body) && !/Darme de baja/.test(m7.htmlBody) && !/Política de privacidad/.test(m7.htmlBody) &&
+      hr7.length > 0 && hr7.every(h => h === web7 || h === SHEET_LINK) && hr7.includes(web7), JSON.stringify(hr7));
+    check('B8 enlace a la hoja: lleva getUrl() del mock + #gid=7; si getUrl lanza, el correo sale igual sin enlace a la hoja',
+      m7.htmlBody.includes('href="' + SHEET_LINK + '"') && (() => { fresh(); G.urlFails = true; const r8 = post(prop()); const m8 = G.sent[0]; return r8.ok === true && G.sent.length === 1 && !/docs\.google\.com|Abrir la hoja/.test(m8.htmlBody) && toDate_(propRows()[0].notificada) !== null; })());
+
+    // C. Validación
+    fresh();
+    const badEmails = ['', 'sin-arroba', 'a,b@example.com', '<a@example.com>', 'a b@example.com', 'a;b@example.com', 'a@b', 5, null, undefined, ['a@example.com'], 'x'.repeat(110) + '@example.com', 'a@example.com\nBcc: x@y.com', '"a"@example.com'];
+    check('C1 email inválido (vacío, sin @, coma, ángulos, espacios, salto de línea, no-texto, >120…) → `email`, sin fila ni correo', allBad('email', badEmails, 'email') && propRows().length === 0 && G.sent.length === 0);
+    fresh();
+    r = post(prop({ hp: 'x' })); const rHpBad = post(prop({ hp: 'x', email: 'mal' }));
+    check('C2 honeypot hp relleno → {ok:true} sin fila ni correo y sin consumir hb (pero el email inválido se rechaza antes)',
+      JSON.stringify(r) === okJ && rHpBad.error === 'email' && propRows().length === 0 && G.sent.length === 0 && G.cache.hb === undefined);
+    fresh();
+    const msBad = [2999, 0, undefined, 'abc', null, '2000', true, -1];
+    const msRes = msBad.map(v => { freeP(); return JSON.stringify(post(prop({ ms: v }))); });
+    const nBefore3 = propRows().length;
+    freeP(); post(prop({ ms: 3000 }));
+    check('C3 ms <3000, ausente, null, texto o NaN → {ok:true} sin fila; 3000 exacto pasa', msRes.every(x => x === okJ) && nBefore3 === 0 && propRows().length === 1 && G.sent.length === 1);
+    fresh();
+    const badTipo = ['otro', '', '__proto__', 'constructor', ['simulacro'], { a: 1 }, 5, null, undefined];
+    check('C4 tipo inválido (desconocido, vacío, nombres internos de objeto, array, objeto, número) → `tipo`', allBad('tipo', badTipo, 'tipo') && propRows().length === 0 && G.sent.length === 0);
+    fresh();
+    const badProv = ['xx', '', '__proto__', 'constructor', 'toString', 5, ['sevilla'], null];
+    const okBil = (() => { freeP(); return post(prop({ provincia: 'bilbao', nombre: nm() })); })();
+    check('C5 provincia inválida (xx, vacía, nombres internos, no-texto) → `provincia`; `bilbao` se guarda como bizkaia',
+      allBad('provincia', badProv, 'provincia') && okBil.ok === true && propRows().length === 1 && propRows()[0].provincia === 'bizkaia');
+    fresh();
+    const badNom = ['', '   ', 'x'.repeat(121), ['a'], { a: 1 }, 5, null, undefined];
+    freeP(); const ok120 = post(prop({ nombre: 'x'.repeat(120) }));
+    check('C6 nombre vacío, de espacios, de 121 caracteres, array u objeto → `nombre`; 120 exactos pasan', allBad('nombre', badNom, 'nombre') && ok120.ok === true && propRows().length === 1 && propRows()[0].nombre.length === 120);
+    fresh();
+    const orgSim = ['', '   ', undefined, 'o'.repeat(121), ['a'], 5];
+    const orgGymBad = ['o'.repeat(121), ['a'], 5];
+    const eGym = orgGymBad.map(v => { freeP(); return post(gprop({ organizador: v })).error; });
+    freeP(); const gOk1 = post(gprop({ organizador: '' })); freeP(); const gOk2 = post(gprop({ organizador: 'Club', nombre: 'Box dos' }));
+    check('C7 organizador: obligatorio en simulacro, opcional en gimnasio; >120 o no-texto → `organizador`',
+      allBad('organizador', orgSim, 'organizador') && eGym.every(e => e === 'organizador') && gOk1.ok === true && gOk2.ok === true && propRows().length === 2);
+    fresh();
+    const badLoc = ['', '   ', 'l'.repeat(121), 5, ['a'], undefined];
+    freeP(); const locOk = post(prop({ localidad: 'l'.repeat(120) }));
+    check('C8 localidad obligatoria y ≤120 → `localidad`', allBad('localidad', badLoc, 'localidad') && locOk.ok === true && propRows().length === 1);
+    fresh();
+    const badUrl = ['javascript:alert(1)', 'data:text/html,x', 'ftp://example.com/x', 'example.com', 'http://', 'https://exa mple.com', 'https://example.com/' + 'a'.repeat(181), 'https://x.com/"onclick', '<script>', '', 5, ['https://x.com'], undefined];
+    freeP(); const url200 = post(prop({ nombre: nm(), url: 'https://example.com/' + 'a'.repeat(180) }));
+    freeP(); const urlHttp = post(prop({ nombre: nm(), url: 'http://example.com/a' }));
+    freeP(); const urlHttps = post(prop({ nombre: nm(), url: 'https://example.com/a' }));
+    check('C9 url `javascript:`, `data:`, `ftp:`, sin esquema, `http://` suelto, con espacios o comillas, >200, no-texto → `url`; http, https y 200 exactos son válidas',
+      allBad('url', badUrl, 'url') && url200.ok === true && urlHttp.ok === true && urlHttps.ok === true && propRows().length === 3 && propRows()[0].web.length === 200);
+    fresh();
+    const badDate = ['2020-01-01', ymdPlus(-1), '2026-02-30', '07/11/2026', plus2y(1), '', 5, undefined, '2026-1-5', '2026-13-01'];
+    freeP(); const dToday = post(prop({ nombre: nm(), fecha_evento: ymdPlus(0) }));
+    freeP(); const dMax = post(prop({ nombre: nm(), fecha_evento: plus2y(0) }));
+    freeP(); const dGym = post(gprop({ nombre: nm(), fecha_evento: 'basura' }));
+    check('C10 fecha_evento pasada, inexistente, en otro formato, a más de 2 años o vacía → `fecha`; hoy y hoy+2 años valen; en gimnasio se ignora',
+      allBad('fecha_evento', badDate, 'fecha') && dToday.ok === true && dMax.ok === true && dGym.ok === true && propRows().length === 3 && propRows()[2].fecha_evento === '');
+    fresh();
+    freeP(); const e501 = post(prop({ mensaje: 'm'.repeat(501) })); freeP(); const eNum = post(prop({ mensaje: 5 })); freeP(); const eArr = post(prop({ mensaje: ['a'] }));
+    freeP(); const m500 = post(prop({ nombre: nm(), mensaje: 'm'.repeat(500) })); freeP(); const m0 = post(prop({ nombre: nm(), mensaje: '' })); freeP(); const mNull = post(prop({ nombre: nm(), mensaje: null }));
+    check('C11 mensaje de 501 caracteres o no-texto → `mensaje`; 500, vacío y null son válidos', e501.error === 'mensaje' && eNum.error === 'mensaje' && eArr.error === 'mensaje' && m500.ok && m0.ok && mNull.ok && propRows().length === 3);
+    fresh();
+    const rolRes = errsOf('rol', ['jefe', 5, ['titular'], 'constructor']);
+    const rolOk = ['titular', 'equipo', 'otro', '', ' TITULAR ', undefined].map(v => { freeP(); post(prop({ nombre: nm(), rol: v })); return propRows()[propRows().length - 1].rol; });
+    check('C12 rol desconocido o no-texto → `rol`; vacío o ausente se guarda como «»; los tres válidos (también con mayúsculas y espacios) pasan',
+      rolRes.every(e => e === 'rol') && rolOk.join() === 'titular,equipo,otro,,titular,', rolOk.join());
+    fresh();
+    const aviOk = (() => { freeP(); post(prop({ nombre: nm(), aviso: B2B_AVISOS.simulacro })); return propRows()[propRows().length - 1].version_aviso; })();
+    const aviBad = [prop({ aviso: 'x' }), prop({ aviso: undefined }), prop({ aviso: B2B_AVISOS.gimnasio }), gprop({ aviso: B2B_AVISOS.simulacro }), prop({ aviso: 5 })].map(o => { freeP(); o.nombre = nm(); const rr = post(o); return rr.ok === true && propRows()[propRows().length - 1].version_aviso === ''; });
+    const regAv = regP('propuesta').filter(x => /Versión de aviso desconocida en P[0-9a-f]{8}$/.test(x[2]));
+    check('C13 versión de aviso: la correcta se guarda; desconocida, ausente o la del otro tipo → «», la fila se guarda y el Registro avisa con el id y sin datos personales',
+      aviOk === B2B_AVISOS.simulacro && aviBad.every(Boolean) && propRows().length === 6 && regAv.length === 5 && regAv.every(x => !/@|Evento/.test(x[2])), JSON.stringify(regAv));
+    fresh();
+    r = post(prop({ nombre: 'Hola\r\nBcc: x@y.com\u202E\u200B  evil', organizador: 'Club\nEjemplo\u0007', localidad: 'Sevilla\t\u0001Centro', mensaje: 'L1\r\nL2\r\n\r\n\r\n\r\nL3\u0007\u202E\u0000' }));
+    const c14 = propRows()[0] || {}, m14 = G.sent[0] || {};
+    const rEmailCr = post(prop({ email: 'a@example.com\r\nBcc: x@y.com' }));
+    check('C14 saltos, controles y marcas bidi: nombre, organizador y localidad quedan en una línea; asunto y replyTo sin saltos; el mensaje conserva \\n pero ningún otro control',
+      r.ok && c14.nombre === 'Hola Bcc: x@y.com evil' && c14.organizador === 'Club Ejemplo' && c14.localidad === 'Sevilla Centro' && c14.mensaje === 'L1\nL2\n\nL3' &&
+      !/[\r\n]/.test(m14.subject) && !/[\r\n]/.test(m14.replyTo) && !/[\u0000-\u0008\u000B-\u001F\u200B-\u200F\u202A-\u202E]/.test(c14.nombre + c14.organizador + c14.localidad + c14.mensaje) && rEmailCr.error === 'email', JSON.stringify(c14));
+
+    // D. Contenido y seguridad
+    fresh();
+    post(prop({ nombre: '=HYPERLINK("http://x","y")', organizador: '+cmd', localidad: '-1+1', mensaje: '@SUM(1)' }));
+    const d1 = propRows()[0] || {};
+    check('D1 fórmulas (=, +, -, @ al inicio) en nombre, organizador, localidad y mensaje: se guardan como texto, sin perderse',
+      d1.nombre === '=HYPERLINK("http://x","y")' && d1.organizador === '+cmd' && d1.localidad === '-1+1' && d1.mensaje === '@SUM(1)', JSON.stringify(d1));
+    fresh();
+    post(prop({ nombre: '<script>alert(1)<\/script>"x"', mensaje: '<img src=x onerror=alert(1)>' })); const m2 = G.sent[0];
+    check('D2 HTML escapado en el aviso: sin etiquetas script ni img, con &lt; y &quot;',
+      !m2.htmlBody.includes('<script') && !m2.htmlBody.includes('<img') && m2.htmlBody.includes('&lt;script&gt;alert(1)&lt;/script&gt;&quot;x&quot;') && m2.htmlBody.includes('&lt;img src=x onerror=alert(1)&gt;'));
+    fresh();
+    post(prop({ mensaje: '[clic](https://evil.example)\nhttps://evil.example/x **negrita**\n- item' })); const m3 = G.sent[0];
+    check('D3 sin enlaces inyectados: el markdown y las URL del mensaje no producen <a href>; la «://» lleva espacio de ancho cero; no hay listas ni negritas (no se usa richText_)',
+      !/href="https?:\/\/evil/.test(m3.htmlBody) && !m3.htmlBody.includes('https://evil') && m3.htmlBody.includes('https:\u200B//evil.example') && !m3.htmlBody.includes('<ul') && !m3.htmlBody.includes('<strong>negrita') && m3.htmlBody.includes('**negrita**') &&
+      hrefs(m3.htmlBody).every(h => h === 'https://example.com/simulacro' || h === SHEET_LINK));
+    fresh();
+    post(prop({ mensaje: 'Linea 1\nLinea 2' })); const m4 = G.sent[0];
+    check('D4 mensaje con saltos: <br> en HTML y \\n en texto plano', m4.htmlBody.includes('Linea 1<br>Linea 2') && m4.body.includes('Linea 1\nLinea 2'));
+    fresh();
+    post(prop()); post(gprop());
+    check('D5 una propuesta válida y aceptada no escribe nada en el Registro', regP().length === 0 && propRows().length === 2);
+
+    // E. Duplicados y límites
+    fresh();
+    post(prop({ nombre: 'Simulación Épica' })); freeP(); G.sent = [];
+    r = post(prop({ nombre: ' SIMULACION   EPICA ', email: 'ANA@example.com' }));
+    check('E1 duplicado (mismo email + nombre normalizado + tipo, estado Nuevo): {ok:true} sin segunda fila ni segundo correo; normaliza mayúsculas, tildes y espacios',
+      JSON.stringify(r) === okJ && propRows().length === 1 && G.sent.length === 0);
+    fresh(); post(prop());
+    updateObj_(T.PROP, 2, { estado: 'Verificada' }); freeP(); G.sent = []; const rV = post(prop()); const nV = propRows().length;
+    updateObj_(T.PROP, 2, { estado: 'Publicada' }); freeP(); post(prop()); const nP = propRows().length;
+    fresh(); post(prop()); updateObj_(T.PROP, 2, { estado: 'Descartada' }); freeP(); post(prop()); const nD = propRows().length;
+    freeP(); post(gprop({ nombre: 'Simulacro de prueba' })); const nT = propRows().length;
+    freeP(); post(prop({ nombre: 'Otro nombre' })); const nN = propRows().length;
+    check('E2 duplicado con Verificada → {ok:true} sin fila; con Publicada o Descartada → fila nueva; otro tipo u otro nombre → fila nueva',
+      rV.ok === true && nV === 1 && nP === 2 && nD === 2 && nT === 3 && nN === 4, [nV, nP, nD, nT, nN].join());
+    fresh();
+    post(prop()); r = post(prop()); const hb3 = JSON.parse(G.cache.hb).n;
+    check('E3 doble envío en menos de 60 s (clave pb:) → {ok:true}, una fila, un correo y solo una unidad del límite hb', JSON.stringify(r) === okJ && propRows().length === 1 && G.sent.length === 1 && hb3 === 1, hb3);
+    fresh();
+    const res4 = []; for (let i = 0; i < 12; i++) res4.push(post(prop({ nombre: 'Evento ' + i })));
+    check('E4 límite hb: de 12 propuestas distintas se aceptan 10 y 2 reciben `busy`, sin fila ni correo para las `busy`',
+      res4.slice(0, 10).every(x => x.ok === true) && res4.slice(10).every(x => x.error === 'busy') && propRows().length === 10 && G.sent.length === 10, JSON.stringify(res4.map(x => x.error || 'ok')));
+    fresh();
+    for (let i = 0; i < 12; i++) post(prop({ nombre: 'Evento ' + i }));
+    const hrB = G.cache.hr; r = post(form({ email: 'solo@example.com' }));
+    check('E5 agotar hb no consume hr: un alta válida funciona y el contador hr solo cuenta esa alta', hrB === undefined && r.ok === true && /\.pdf$/.test(r.plan) && JSON.parse(G.cache.hr).n === 1);
+    fresh();
+    let busy41 = ''; for (let i = 0; i < 41; i++) { clearThrottle(); busy41 = post(form({ email: 'masa' + i + '@example.com' })).error; }
+    r = post(prop());
+    check('E6 hr no consume hb: tras 41 altas (la última `busy`) una propuesta se acepta y hb cuenta solo esa', busy41 === 'busy' && r.ok === true && propRows().length === 1 && JSON.parse(G.cache.hb).n === 1, busy41);
+    fresh();
+    for (let i = 0; i < 20; i++) post(prop({ nombre: '' }));
+    for (let i = 0; i < 5; i++) post(prop({ hp: 'x', nombre: 'Bot ' + i }));
+    const hbFree = G.cache.hb === undefined; const res7 = []; for (let i = 0; i < 11; i++) res7.push(post(prop({ nombre: 'Evento ' + i })));
+    check('E7 los errores de validación y los bots no consumen hb: tras 20 intentos inválidos y 5 bots se aceptan 10 válidas (la 11.ª `busy`)', hbFree && res7.slice(0, 10).every(x => x.ok === true) && res7[10].error === 'busy' && propRows().length === 10);
+
+    // F. Aviso al titular
+    fresh();
+    const toOf = () => { freeP(); G.sent = []; post(prop({ nombre: nm() })); return G.sent.map(m => m.to).join(); };
+    const t0 = toOf();
+    setCfg_('EMAIL_PROPUESTAS', 'titular@example.com'); const t1 = toOf();
+    setCfg_('EMAIL_PROPUESTAS', ''); setCfg_('CONTACT_EMAIL', 'contacto@example.com'); const t2 = toOf();
+    setCfg_('CONTACT_EMAIL', 'no-es-email'); const t3 = toOf();
+    setCfg_('CONTACT_EMAIL', ''); const t4 = toOf();
+    check('F1 destinatario: EMAIL_PROPUESTAS válido gana; vacío → CONTACT_EMAIL; CONTACT_EMAIL no vacío e inválido → cuenta de Google; CONTACT_EMAIL vacío vuelve al valor por defecto (cfg_)',
+      t0 === 'info@ritmohibrido.com' && t1 === 'titular@example.com' && t2 === 'contacto@example.com' && t3 === 'ritmo@example.com' && t4 === 'info@ritmohibrido.com', [t0, t1, t2, t3, t4].join(' | '));
+    fresh();
+    const badEp = ['no-es-email', 'a@b.cc,d@e.ff'].map(v => { setCfg_('EMAIL_PROPUESTAS', v); return toOf(); });
+    const regEp = regP('propuesta').filter(x => /EMAIL_PROPUESTAS no es un email válido/.test(x[2]));
+    check('F2 EMAIL_PROPUESTAS inválido (sin @, varias direcciones): usa CONTACT_EMAIL y avisa en el Registro sin datos personales',
+      badEp.every(x => x === 'info@ritmohibrido.com') && regEp.length === 2 && regP('propuesta').every(x => !/@|Evento/.test(x[2])), JSON.stringify(regP('propuesta')));
+    fresh();
+    setCfg_('CONTACT_EMAIL', 'nope'); G.me = ''; r = post(prop());
+    const nSin1 = G.sent.length; G.me = 'ritmo@example.com'; G.meThrows = true; freeP(); post(prop({ nombre: nm() }));
+    check('F3 ninguna dirección válida (Session devuelve «» o lanza): las filas se guardan, 0 correos y el Registro lo anota sin datos personales',
+      r.ok === true && nSin1 === 0 && G.sent.length === 0 && propRows().length === 2 && propRows().every(x => x.notificada === '') && regP('propuesta').filter(x => /Sin destinatario válido para avisar de P[0-9a-f]{8}$/.test(x[2])).length === 2);
+    fresh(); G.quota = G.sent.length;
+    r = post(prop());
+    const regQ = regP('propuesta');
+    check('F4 sin cuota: la fila se guarda con notificada vacía, 0 correos y 1 línea en el Registro con el id, sin email ni nombre del proponente',
+      r.ok === true && propRows().length === 1 && propRows()[0].notificada === '' && G.sent.length === 0 && regQ.length === 1 && /^Sin cuota de email para avisar de P[0-9a-f]{8}$/.test(regQ[0][2]) && !/ana@|Simulacro/.test(regQ[0][2]), JSON.stringify(regQ));
+    fresh(); G.quota = 10; r = post(prop()); const nQ = G.sent.length;
+    free(); const rq = post(form({ email: 'reserva@example.com' }));
+    check('F5 con la cuota igual a la reserva (10): no avisa pero guarda; en esa misma cuota un alta de plan sí envía su PDF',
+      r.ok === true && nQ === 0 && propRows().length === 1 && propRows()[0].notificada === '' && rq.ok === true && G.sent.length === 1 && G.sent[0].to === 'reserva@example.com' && /plan de 16 semanas/.test(G.sent[0].subject));
+    fresh(); G.quota = 0; post(prop()); G.quota = 100;
+    const subsSnap6 = JSON.stringify(G.sheets['Suscriptores'].rows), sendsSnap6 = JSON.stringify(G.sheets['Envíos'].rows);
+    runDailyJob(); const f6a = G.sent.slice(); const n6 = propRows()[0].notificada;
+    runDailyJob();
+    check('F6 reintento: recuperada la cuota, runDailyJob avisa y rellena notificada; un segundo job no repite; Suscriptores y Envíos intactos',
+      f6a.length === 1 && f6a[0].to === 'info@ritmohibrido.com' && /^\[Propuesta\]/.test(f6a[0].subject) && n6 instanceof Date && G.sent.length === 1 && JSON.stringify(G.sheets['Suscriptores'].rows) === subsSnap6 && JSON.stringify(G.sheets['Envíos'].rows) === sendsSnap6);
+    fresh();
+    ['A', 'F'].forEach(n => addP({ nombre: n, estado: n === 'F' ? '' : 'Nuevo' }));
+    addP({ nombre: 'B', fecha: new Date(Date.now() - 8 * 864e5) }); addP({ nombre: 'C', estado: 'Verificada' }); addP({ nombre: 'D', estado: 'Descartada' }); addP({ nombre: 'E', estado: 'Publicada' });
+    runDailyJob(); const f7a = G.sent.map(m => m.subject.split(': ')[1]).sort().join();
+    fresh(); for (let i = 0; i < 12; i++) addP({ nombre: 'N' + i });
+    runDailyJob(); const f7b = G.sent.length; runDailyJob(); const f7c = G.sent.length;
+    check('F7 reintento acotado: solo propuestas Nuevas o sin estado de los últimos 7 días (no Verificada, Publicada, Descartada ni de hace 8 días) y máximo 10 por ejecución',
+      f7a === 'A,F' && f7b === 10 && f7c === 12, [f7a, f7b, f7c].join(' | '));
+    fresh(); setCfg_('PROPUESTAS_MAX_DIA', 2);
+    ['u', 'v', 'w'].forEach(x => { freeP(); post(prop({ nombre: 'Evento ' + x })); });
+    const f8a = G.sent.length, w8 = () => propRows().find(x => x.nombre === 'Evento w');
+    const f8cap = regP('propuesta').filter(x => /Tope diario de avisos alcanzado: P[0-9a-f]{8} queda sin avisar$/.test(x[2])).length;
+    G.sent = []; runDailyJob(); const f8same = G.sent.length;
+    propRows().filter(x => x.notificada instanceof Date).forEach(x => updateObj_(T.PROP, x._row, { notificada: daysAgo(1) }));
+    runDailyJob(); const f8next = G.sent.slice();
+    setCfg_('PROPUESTAS_MAX_DIA', 0); freeP(); G.sent = []; post(prop({ nombre: 'Evento cero' }));
+    check('F8 tope diario (PROPUESTAS_MAX_DIA=2): 3 propuestas → 2 correos y 3 filas, la tercera sin notificada y con aviso en el Registro; al día siguiente el job la envía; con 0 no se avisa',
+      f8a === 2 && f8cap >= 1 && f8same === 0 && f8next.length === 1 && /Evento w$/.test(f8next[0].subject) && w8().notificada instanceof Date && G.sent.length === 0 && propRows().length === 4, [f8a, f8cap, f8same, f8next.length].join());
+    fresh(); G.failFor = 'info@ritmohibrido.com';
+    r = post(prop({ nombre: 'Evento Secreto' })); G.failFor = null;
+    const reg9 = regP('propuesta');
+    check('F9 fallo de envío del aviso: fila guardada con notificada vacía, Registro con el id y «[email]» (sin la dirección ni datos del proponente) y la respuesta sigue siendo {ok:true}',
+      JSON.stringify(r) === okJ && propRows().length === 1 && propRows()[0].notificada === '' && reg9.length === 1 && /^Fallo al enviar el aviso de P[0-9a-f]{8}: Dirección inválida: \[email\]$/.test(reg9[0][2]) && !/info@|ana@|Secreto/.test(reg9[0][2]), JSON.stringify(reg9));
+    fresh(); const rOk10 = post(prop());
+    fresh(); G.quota = 0; const rKo10 = post(prop());
+    check('F10 la respuesta de la web es idéntica ({ok:true}) con y sin cuota de email', JSON.stringify(rOk10) === okJ && JSON.stringify(rKo10) === okJ);
+    fresh(); post(prop()); G.sent = [];
+    const snapF11 = snap(); sendTestProposal();
+    check('F11 sendTestProposal: 1 correo al correo de la cuenta (no al destinatario de Config), asunto [PRUEBA], y no escribe en ninguna hoja',
+      G.sent.length === 1 && G.sent[0].to === 'ritmo@example.com' && /^\[PRUEBA\] \[Propuesta\] Simulacro: /.test(G.sent[0].subject) && snap() === snapF11);
+
+    // G. Panel y edición
+    fresh();
+    ['A', 'B', 'C', 'D', 'E'].forEach(n => addP({ nombre: n, notificada: new Date() }));
+    const shP = G.sheets['Propuestas'], headP = shP.rows[0], colP = n => headP.indexOf(n) + 1;
+    const oldRev = new Date(Date.now() - 40 * 864e5);
+    updateObj_(T.PROP, 3, { fecha_revision: oldRev });
+    const ed = (row, colName, v) => onEdit({ range: shP.getRange(row, colP(colName)), value: v });
+    ed(2, 'estado', 'Verificada'); ed(3, 'estado', 'Publicada'); ed(4, 'estado', 'Nuevo'); ed(5, 'notas', 'Verificada'); ed(6, 'estado', 'Descartada'); ed(1, 'estado', 'Verificada');
+    const g1 = propRows();
+    check('G1 onEdit en Propuestas: estado → Verificada/Publicada/Descartada rellena fecha_revision; no pisa una existente; Nuevo u otras columnas no la tocan',
+      g1[0].fecha_revision instanceof Date && recent(g1[0].fecha_revision) && +g1[1].fecha_revision === +oldRev && g1[2].fecha_revision === '' && g1[3].fecha_revision === '' && g1[4].fecha_revision instanceof Date && shP.rows[0].join() === EXPC);
+    fresh();
+    addP({ nombre: 'a', estado: 'Nuevo', tipo: 'simulacro', destacado: 'SI' }); addP({ nombre: 'b', estado: 'Nuevo', tipo: 'gimnasio' }); addP({ nombre: 'c', estado: '', tipo: 'simulacro' });
+    addP({ nombre: 'd', estado: 'Verificada', tipo: 'simulacro', destacado: 'SI' }); addP({ nombre: 'e', estado: 'Publicada', tipo: 'gimnasio', destacado: 'SI' }); addP({ nombre: 'f', estado: 'Descartada', tipo: 'simulacro' });
+    const g2s = statsP().propuestas;
+    check('G2 stats.propuestas con mezcla: pendientes (Nuevo y sin estado), simulacros, gimnasios y destacado solo entre pendientes, y total', JSON.stringify(g2s) === JSON.stringify({ pendientes: 3, simulacros: 2, gimnasios: 1, destacado: 1, total: 6 }), JSON.stringify(g2s));
+    fresh(); const zero = JSON.stringify({ pendientes: 0, simulacros: 0, gimnasios: 0, destacado: 0, total: 0 });
+    const z1 = JSON.stringify(statsP().propuestas);
+    G.reset(); G.props.PANEL_PASSWORD = 'clave-de-prueba-123';
+    const z2 = JSON.stringify(post({ action: 'stats', password: 'clave-de-prueba-123' }).stats.propuestas);
+    const z3 = JSON.stringify(buildStats_({ subs: [], leads: [], camps: [], sends: [], log: [], cfg: {} }, new Date()).propuestas);
+    check('G3 sin filas, sin hoja o con un `d` sin props: todo ceros', z1 === zero && z2 === zero && z3 === zero, [z1, z2, z3].join(' '));
+    fresh();
+    post(prop({ email: 'secreto@pii.example', nombre: 'NombreSecreto', mensaje: 'MensajeSecreto', organizador: 'OrganizadorSecreto', localidad: 'LocalidadSecreta' })); addP({ nombre: 'OtraSecreta', email: 'otro@pii.example', mensaje: 'MensajeSecreto2' });
+    const js4 = JSON.stringify(post({ action: 'stats', password: G.props.PANEL_PASSWORD }));
+    check('G4 el JSON de stats no contiene emails, nombres, mensajes ni datos de las propuestas', !/pii\.example|Secret|NombreSecreto|MensajeSecreto|OrganizadorSecreto|LocalidadSecreta/.test(js4) && JSON.parse(js4).stats.propuestas.total === 2);
+    fresh(); G.quota = 0; post(prop());
+    const s5a = statsP().sistema; G.quota = 100; runDailyJob(); const s5b = statsP().sistema;
+    check('G5 sistema.filas.propuestas y sistema.propuestasSinAviso (1 sin cuota → 0 tras el reintento)', s5a.filas.propuestas === 1 && s5a.propuestasSinAviso === 1 && s5b.filas.propuestas === 1 && s5b.propuestasSinAviso === 0, JSON.stringify([s5a.propuestasSinAviso, s5b.propuestasSinAviso]));
+    fresh();
+    const ck = s => s.checks.find(c => c.k === 'Aviso de propuestas');
+    const ck1 = ck(statsP().sistema);
+    setCfg_('CONTACT_EMAIL', 'nope'); setCfg_('EMAIL_PROPUESTAS', 'nope2'); G.me = '';
+    const ck2 = ck(statsP().sistema);
+    check('G6 sistema.checks incluye «Aviso de propuestas»: ok por defecto y ok:false si CONTACT_EMAIL y EMAIL_PROPUESTAS son inválidos y la cuenta de Google no da correo',
+      ck1 && ck1.ok === true && ck2 && ck2.ok === false && /EMAIL_PROPUESTAS/.test(ck2.msg));
+    const reg7a = regP().length; statsP(); statsP(); const reg7b = regP().length;
+    check('G7 consultar el panel con una configuración inválida no escribe en el Registro (proposalRecipient_(false) es silenciosa)', reg7a === reg7b);
+
+    // H. Acciones
+    fresh();
+    const accs = ['propuestas', 'Propuesta', ' propuesta', 'signup2'].map(a => post({ action: a, email: 'ana@example.com' }).error);
+    const rSin = post({ action: 'propuesta' });
+    check('H1 `propuestas`, `Propuesta`, « propuesta» y `signup2` siguen dando `accion`; {action:\'propuesta\'} sin cuerpo da `email`, no `server`', accs.every(e => e === 'accion') && rSin.error === 'email', JSON.stringify([accs, rSin]));
+    const dest = ['true', '1', 1, 'SI', 'si', true].map(v => { freeP(); post(prop({ nombre: nm(), destacado: v })); return propRows()[propRows().length - 1].destacado; });
+    check('H2 destacado en texto o número («true», «1», 1, «SI») se guarda como NO; solo el booleano true da SI', dest.join() === 'NO,NO,NO,NO,NO,SI', dest.join());
+
+    // I. Consentimiento v5
+    fresh();
+    check('I1 consentFor_: «alertas» → CONSENT_ALERTAS; «plan», ausente o cualquier otro valor → CONSENT_PLAN',
+      consentFor_('alertas') === CONSENT_ALERTAS && consentFor_('plan') === CONSENT_PLAN && consentFor_(undefined) === CONSENT_PLAN && consentFor_('x') === CONSENT_PLAN && consentFor_(null) === CONSENT_PLAN);
+    const PAIR = '\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}';
+    free(); post(form({ email: 'v5p@example.com' })); const i2 = subBy2('v5p@example.com');
+    check('I2 alta de plan nueva: consentimiento = CONSENT_PLAN y un solo par «etiqueta@AAAA-MM-DD HH:mm» en consentimientos',
+      i2.consentimiento === CONSENT_PLAN && new RegExp('^2026-10-v5-plan@' + PAIR + '$').test(i2.consentimientos), i2.consentimientos);
+    free(); post(form({ email: 'v5a@example.com', lead: 'alertas' })); const i3 = subBy2('v5a@example.com');
+    check('I3 alta de alertas nueva: consentimiento = CONSENT_ALERTAS y un solo par en consentimientos',
+      i3.consentimiento === CONSENT_ALERTAS && new RegExp('^2026-10-v5-alertas@' + PAIR + '$').test(i3.consentimientos), i3.consentimientos);
+    free(); post(form({ email: 'alt@example.com' }));
+    const d5 = daysAgo(5); updateObj_(T.SUBS, subBy2('alt@example.com')._row, { fecha_confirmacion: d5 });
+    free(); post(form({ email: 'alt@example.com', lead: 'alertas' }));
+    let alt = subBy2('alt@example.com');
+    const altFirst = alt.consentimiento === CONSENT_ALERTAS && recent(alt.fecha_confirmacion) && alt.consentimientos.split(' | ').length === 2;
+    updateObj_(T.SUBS, alt._row, { fecha_confirmacion: d5 }); const hist4 = subBy2('alt@example.com').consentimientos;
+    ['plan', 'alertas', 'plan', 'alertas'].forEach(l => { free(); post(form({ email: 'alt@example.com', lead: l })); });
+    alt = subBy2('alt@example.com');
+    check('I4 alternar formularios: plan → alertas reescribe una sola vez (fecha nueva, 2 pares); plan, alertas, plan, alertas después no cambian fecha_confirmacion ni el historial',
+      altFirst && +alt.fecha_confirmacion === +d5 && alt.consentimientos === hist4 && alt.consentimiento === CONSENT_ALERTAS, JSON.stringify(alt));
+    seqSub('v4p@example.com', { consentimiento: '2026-10-v4', fecha_confirmacion: daysAgo(30), lead: 'plan' });
+    free(); post(form({ email: 'v4p@example.com' })); const i5 = subBy2('v4p@example.com');
+    check('I5 v4 → v5 por plan: al repetir el alta pasa a CONSENT_PLAN con fecha nueva y el historial conserva «v4@…» antes del par nuevo',
+      i5.consentimiento === CONSENT_PLAN && recent(i5.fecha_confirmacion) && new RegExp('^2026-10-v4@' + PAIR + ' \\| 2026-10-v5-plan@' + PAIR + '$').test(i5.consentimientos), i5.consentimientos);
+    seqSub('v4a@example.com', { consentimiento: '2026-10-v4', fecha_confirmacion: daysAgo(30), lead: 'alertas', bienvenida: new Date() });
+    free(); post(form({ email: 'v4a@example.com', lead: 'alertas' })); const i6 = subBy2('v4a@example.com');
+    check('I6 v4 → v5 por alertas: al repetir el alta pasa a CONSENT_ALERTAS con fecha nueva y el historial conserva «v4@…» antes del par nuevo',
+      i6.consentimiento === CONSENT_ALERTAS && recent(i6.fecha_confirmacion) && new RegExp('^2026-10-v4@' + PAIR + ' \\| 2026-10-v5-alertas@' + PAIR + '$').test(i6.consentimientos), i6.consentimientos);
+    const junk = ['|||', 'basura sin arroba', '@@@', ' | @ | ', 12345, '=1+1', 'x'.repeat(300)];
+    const i7 = junk.map((h, i) => { const e = 'junk' + i + '@example.com'; seqSub(e, { consentimiento: '2026-10-v4', fecha_confirmacion: daysAgo(30), lead: 'plan', consentimientos: h }); free(); const rr = post(form({ email: e })); const s = subBy2(e); return rr.ok === true && s.consentimiento === CONSENT_PLAN && recent(s.fecha_confirmacion) && new RegExp('2026-10-v5-plan@' + PAIR + '$').test(s.consentimientos); });
+    check('I7 historial vacío, corrupto o con texto raro no rompe nada: responde ok, re-consiente con la etiqueta nueva y añade su par al final', i7.every(Boolean), JSON.stringify(i7));
+    free(); post(form({ email: 'bj@example.com' }));
+    post({ action: 'unsub', token: subBy2('bj@example.com').token });
+    free(); post(form({ email: 'bj@example.com', lead: 'alertas' })); let bj = subBy2('bj@example.com');
+    const bj1 = bj.estado === 'Confirmado' && bj.consentimiento === CONSENT_ALERTAS && recent(bj.fecha_confirmacion) && bj.consentimientos.split(' | ').length === 2 && bj.consentimientos.split(' | ')[1].startsWith(CONSENT_ALERTAS);
+    for (let i = 0; i < 25; i++) { post({ action: 'unsub', token: subBy2('bj@example.com').token }); free(); post(form({ email: 'bj@example.com', lead: i % 2 ? 'plan' : 'alertas' })); }
+    bj = subBy2('bj@example.com'); const pairs8 = bj.consentimientos.split(' | ');
+    check('I8 baja → re-alta: siempre se reescribe, con la etiqueta del formulario usado, fecha nueva y un par más; tras 25 altas el historial tiene como mucho 20 pares y termina en la última',
+      bj1 && pairs8.length === CONSENT_KEEP && pairs8.length <= 20 && pairs8[pairs8.length - 1].startsWith(CONSENT_ALERTAS) && bj.consentimiento === CONSENT_ALERTAS, pairs8.length);
+    appendObj_(T.SUBS, { id: 'cf1', fecha_alta: new Date(), email: 'conf@example.com', ciudad: 'sevilla', estado: 'Pendiente', marketing: 'SI', token: 'd'.repeat(32), emails_confirmacion: 1 });
+    r = post({ action: 'confirm', token: 'd'.repeat(32) }); const i9 = subBy2('conf@example.com');
+    check('I9 handleConfirm_ (enlace antiguo) estampa CONSENT_PLAN y su par en consentimientos', r.ok === true && i9.estado === 'Confirmado' && i9.consentimiento === CONSENT_PLAN && new RegExp('^2026-10-v5-plan@' + PAIR + '$').test(i9.consentimientos), i9.consentimientos);
+    fresh();
+    const d30 = daysAgo(30);
+    ['plan', 'alertas'].forEach(l => seqSub('r' + l + '@example.com', { consentimiento: '2026-10-v4', fecha_confirmacion: d30, lead: l, bienvenida: new Date() }));
+    const keep10 = () => JSON.stringify(subs().map(s => [s.email, s.consentimiento, s.consentimientos, +s.fecha_confirmacion]));
+    const k0 = keep10(); ensureSchema_(); runDailyJob(); runDailyJob();
+    check('I10 las filas v4 que no repiten el alta no se tocan: ni ensureSchema_ ni el job diario cambian consentimiento, consentimientos ni fecha_confirmacion', keep10() === k0 && subs().every(s => s.consentimiento === '2026-10-v4'));
+
+    // O. Purga manual de propuestas antiguas (política: máximo 12 meses desde que se resuelve)
+    fresh();
+    const full = { email: 'viejo@pii.example', mensaje: 'Mensaje privado', notas: 'Nota privada' };
+    addP(Object.assign({ nombre: 'O1', estado: 'Descartada', fecha_revision: monthsAgo(13) }, full));
+    addP(Object.assign({ nombre: 'O2', estado: 'Publicada', fecha_revision: monthsAgo(13) }, full));
+    addP(Object.assign({ nombre: 'O3', estado: 'Verificada', fecha_revision: monthsAgo(14) }, full));
+    addP(Object.assign({ nombre: 'O4', estado: 'Descartada', fecha_revision: monthsAgo(6) }, full));
+    addP(Object.assign({ nombre: 'O5', estado: 'Nuevo', fecha: monthsAgo(14) }, full));
+    addP(Object.assign({ nombre: 'O6', estado: 'Descartada', fecha_revision: '' }, full));
+    addP(Object.assign({ nombre: 'O7', estado: 'Publicada', fecha_revision: monthsAgo(11) }, full));
+    const before = propRows(), idCols = ['id', 'fecha', 'tipo', 'nombre', 'estado', 'organizador', 'provincia', 'localidad', 'web', 'fecha_revision'];
+    const keepCols = rows => JSON.stringify(rows.map(x => idCols.map(c => x[c])));
+    const kc0 = keepCols(before);
+    const nPurged = purgeOldProposals(); const after = propRows();
+    const cleared = i => after[i].email === '' && after[i].mensaje === '' && after[i].notas === '';
+    const intact = i => after[i].email === full.email && after[i].mensaje === full.mensaje && after[i].notas === full.notas;
+    check('O1 purgeOldProposals vacía email, mensaje y notas de las propuestas Descartada, Publicada o Verificada resueltas hace más de 12 meses y no toca las recientes, las Nuevas ni las sin fecha_revision; no borra filas ni cambia id, fecha, tipo, nombre ni estado',
+      nPurged === 3 && after.length === 7 && cleared(0) && cleared(1) && cleared(2) && [3, 4, 5, 6].every(intact) && keepCols(after) === kc0, [nPurged, after.length].join());
+    const regBeforeO = regP().length; const nAgain = purgeOldProposals(); const regO = regP().slice(regBeforeO);
+    check('O2 la purga registra solo el nº de filas (nunca datos) y repetirla no vacía nada más',
+      nAgain === 0 && regO.length === 1 && regO[0][1] === 'propuestas' && regO[0][2] === 'Purga de propuestas antiguas: 0 filas' && regP('propuestas').some(x => x[2] === 'Purga de propuestas antiguas: 3 filas') && !/pii|privad|O[1-7]/.test(JSON.stringify(regP('propuestas'))), JSON.stringify(regP('propuestas')));
+  }
+
   // Anti-deriva: el texto de consentimiento de la web lleva la misma versión que el backend (solo si se sirve la raíz del repo)
   try {
     const pages = await Promise.all(['../../index.html', '../../plan/index.html'].map(u => fetch(u)));
     if (pages.every(p => p.ok)) {
       const vers = (await Promise.all(pages.map(p => p.text()))).map(t => (t.match(/<p class="fine" data-consent="([^"]+)"/) || [])[1]);
-      check('anti-deriva: index.html y plan/index.html llevan data-consent igual a CONSENT_VERSION', vers.every(v => v === CONSENT_VERSION), JSON.stringify(vers));
+      check('anti-deriva: index.html y plan/index.html llevan data-consent igual a CONSENT_PLAN', vers.every(v => v === CONSENT_PLAN), JSON.stringify(vers));
     }
   } catch (e) { /* abierto sin servir la raíz del repo: no se comprueba */ }
 
@@ -704,12 +1121,12 @@ async function run() {
       const planTail = tail(planHtml);
       const inputs = t => t.match(/<input\b[^>]*name="intereses"[^>]*>/g) || [];
 
-      let b = bad(x => cnt(x.t, /data-signup/g) === 1 && cnt(x.t, /<form\b/g) === 1);
-      check('anti-deriva avisos: cada una de las 11 páginas tiene exactamente 1 data-signup y 1 <form', b === '', b);
+      let b = bad(x => cnt(x.t, /data-signup/g) === 1 && cnt(x.t, /<form\b/g) === 1 + cnt(x.t, /data-b2b/g));
+      check('anti-deriva avisos: cada una de las 11 páginas tiene exactamente 1 data-signup y tantos <form como 1 + data-b2b', b === '', b);
       b = bad(x => /<form\b[^>]*data-lead="alertas"/.test(x.t));
       check('anti-deriva avisos: el formulario es data-lead="alertas"', b === '', b);
-      b = bad(x => JSON.stringify((x.t.match(/<p class="fine" data-consent="([^"]+)"/g) || []).map(s => s.match(/data-consent="([^"]+)"/)[1])) === JSON.stringify([CONSENT_VERSION]));
-      check('anti-deriva avisos: un único aviso con data-consent igual a CONSENT_VERSION', b === '', b);
+      b = bad(x => JSON.stringify((x.t.match(/<p class="fine" data-consent="([^"]+)"/g) || []).map(s => s.match(/data-consent="([^"]+)"/)[1])) === JSON.stringify([CONSENT_ALERTAS]));
+      check('anti-deriva avisos: un único aviso con data-consent igual a CONSENT_ALERTAS', b === '', b);
       b = bad(x => inputs(x.t).length === 3 && inputs(x.t).every(s => !/\bchecked\b/.test(s)) && inputs(x.t).map(s => (s.match(/value="([^"]*)"/) || [])[1]).sort().join() === INTERESTS.slice().sort().join());
       check('anti-deriva avisos: exactamente 3 casillas intereses, sin marcar y con los valores de INTERESTS', b === '', b);
       b = bad(x => !/name="carrera"/.test(x.t));
@@ -726,6 +1143,63 @@ async function run() {
       check('anti-deriva avisos: el enlace de privacidad tiene la profundidad correcta', b === '', b);
       b = bad(x => { const body = (x.t.match(/<body\b[^>]*>/) || [''])[0], m = body.match(/data-provincia="([^"]*)"/); return x.prov === null ? !m : (m && m[1] === x.prov && Object.prototype.hasOwnProperty.call(PROVINCES, m[1])); });
       check('anti-deriva avisos: <body data-provincia> ausente en calendario y simulacros y, en las otras 9, igual a la provincia esperada (y existente en PROVINCES)', b === '', b);
+    }
+  } catch (e) { /* abierto sin servir la raíz del repo: no se comprueba */ }
+
+  // Anti-deriva de los formularios B2B (propuestas): contrato HTML ↔ backend (solo si se sirven todas las páginas)
+  try {
+    const NAMES = ['inicio', 'plan', 'calendario', 'simulacros', 'gimnasios', 'gimnasios/barcelona', 'gimnasios/madrid', 'gimnasios/malaga', 'gimnasios/sevilla', 'gimnasios/valencia',
+      'carreras/barcelona-2026', 'carreras/bilbao-2027', 'carreras/madrid-2027', 'carreras/malaga-2027'];
+    const urlsB = NAMES.map(n => (n === 'inicio' ? '' : n + '/') + 'index.html').concat(['privacidad/index.html', 'aviso-legal/index.html']);
+    const respB = await Promise.all(urlsB.map(u => fetch('../../' + u)));
+    if (respB.every(p => p.ok)) {
+      const textsB = await Promise.all(respB.map(p => p.text()));
+      const scan = NAMES.map((n, i) => ({ n, t: textsB[i] }));
+      const page = n => scan.find(x => x.n === n).t;
+      const sim = page('simulacros'), gym = page('gimnasios'), priv = textsB[NAMES.length], legal = textsB[NAMES.length + 1];
+      const cities = scan.filter(x => /^gimnasios\/./.test(x.n));
+      const cnt = (t, re) => (t.match(re) || []).length;
+      const formOf = t => (t.match(/<form\b[^>]*data-b2b[\s\S]*?<\/form>/) || [''])[0];
+      const tipoOf = t => (t.match(/<form\b[^>]*data-b2b="([^"]+)"/) || [])[1];
+      const avisoP = t => (t.match(/<p class="b2b-aviso"[\s\S]*?<\/p>/) || [''])[0];
+      const namesOf = fb => [...fb.matchAll(/<(?:input|select|textarea)\b[^>]*\bname="([^"]+)"/g)].map(m => m[1]);
+      const tag = (fb, name) => (fb.match(new RegExp('<(?:input|select|textarea)\\b[^>]*\\bname="' + name + '"[^>]*>')) || [''])[0];
+      const B2B = [['simulacro', sim, 'publicar'], ['gimnasio', gym, 'proponer']];
+      const allB2B = f => B2B.every(([tipo, t, id]) => { try { return !!f(tipo, t, id, formOf(t)); } catch (e) { return false; } });
+
+      check('J1 simulacros: 1 data-signup, 1 data-b2b y 2 <form; gimnasios/index.html: 0 data-signup, 1 data-b2b y 1 <form',
+        cnt(sim, /data-signup/g) === 1 && cnt(sim, /data-b2b/g) === 1 && cnt(sim, /<form\b/g) === 2 && cnt(gym, /data-signup/g) === 0 && cnt(gym, /data-b2b/g) === 1 && cnt(gym, /<form\b/g) === 1,
+        [cnt(sim, /data-signup/g), cnt(sim, /data-b2b/g), cnt(sim, /<form\b/g), cnt(gym, /data-signup/g), cnt(gym, /data-b2b/g), cnt(gym, /<form\b/g)].join());
+      const bad2 = scan.filter(x => cnt(x.t, /data-b2b/g) > 1 || cnt(x.t, /data-signup/g) > 1 || (x.t.match(/<form\b[^>]*>/g) || []).some(f => /data-signup/.test(f) && /data-b2b/.test(f))).map(x => x.n).join(', ');
+      check('J2 en las 14 páginas escaneadas: como mucho 1 data-b2b y 1 data-signup, y nunca los dos en el mismo <form>', bad2 === '', bad2);
+      check('J3 el data-aviso de cada formulario B2B es exactamente B2B_AVISOS[tipo], único por página y dentro de <p class="b2b-aviso">',
+        tipoOf(sim) === 'simulacro' && tipoOf(gym) === 'gimnasio' && allB2B((tipo, t) => cnt(t, /data-aviso=/g) === 1 && (t.match(/<p class="b2b-aviso"[^>]*\sdata-aviso="([^"]+)"/) || [])[1] === B2B_AVISOS[tipo]));
+      check('J4 el aviso enlaza a ../privacidad/, menciona Ritmo Híbrido e info@ritmohibrido.com y dice «No te apuntamos a ninguna lista de correo ni newsletter»',
+        allB2B((tipo, t) => { const a = avisoP(t); return a.includes('href="../privacidad/"') && a.includes('Ritmo Híbrido') && a.includes('info@ritmohibrido.com') && a.includes('No te apuntamos a ninguna lista de correo ni newsletter'); }));
+      check('J5 el formulario B2B no lleva checked, ni intereses/carrera/marketing/consentimiento/newsletter, ni data-consent/data-lead/data-signup; destacado solo en simulacros (checkbox); el aviso no habla de comunicaciones comerciales',
+        allB2B((tipo, t, id, fb) => !/\bchecked\b/.test(fb) && !namesOf(fb).some(n => ['intereses', 'carrera', 'marketing', 'consentimiento', 'newsletter'].includes(n)) && !/data-consent|data-lead|data-signup/.test(fb) &&
+          (tipo === 'simulacro' ? cnt(fb, /name="destacado"/g) === 1 && /type="checkbox"/.test(tag(fb, 'destacado')) : !namesOf(fb).includes('destacado')) && !/comercial|ofertas|novedades|promoci|consejos|boletín|suscrib/i.test(avisoP(t))));
+      check('J6 un único name="hp" por formulario con tabindex="-1" y autocomplete="off"; la web en name="url" y ningún name="web"; method="post" y novalidate',
+        allB2B((tipo, t, id, fb) => { const open = fb.match(/<form\b[^>]*>/)[0], hp = tag(fb, 'hp'); return cnt(fb, /name="hp"/g) === 1 && /tabindex="-1"/.test(hp) && /autocomplete="off"/.test(hp) && cnt(fb, /name="url"/g) === 1 && !/name="web"/.test(fb) && /method="post"/.test(open) && /\bnovalidate\b/.test(open) && /class="b2b"/.test(open); }));
+      check('J7 ids publicar/proponer (+ -titulo y -aviso); aria-labelledby apunta al título; el botón apunta al aviso; mensaje <p class="form-msg b2b-msg" role="alert">; #alta sigue en gimnasios',
+        allB2B((tipo, t, id, fb) => { const open = fb.match(/<form\b[^>]*>/)[0], btn = (fb.match(/<button\b[^>]*>/) || [''])[0]; return open.includes('id="' + id + '"') && open.includes('aria-labelledby="' + id + '-titulo"') && cnt(fb, new RegExp('id="' + id + '-titulo"', 'g')) === 1 && btn.includes('aria-describedby="' + id + '-aviso"') && cnt(fb, new RegExp('id="' + id + '-aviso"', 'g')) === 1 && cnt(fb, /<p class="form-msg b2b-msg" role="alert"/g) === 1; }) && cnt(gym, /id="alta"/g) === 1);
+      const ALLOWED = ['nombre', 'organizador', 'email', 'provincia', 'localidad', 'fecha_evento', 'url', 'mensaje', 'rol', 'destacado', 'hp'];
+      check('J8 el maxlength del HTML es el de PROP_LIMITS (nombre, organizador, localidad, url, mensaje, email) y los name del formulario son campos que lee el backend',
+        allB2B((tipo, t, id, fb) => ['nombre', 'organizador', 'localidad', 'url', 'mensaje', 'email'].filter(n => n !== 'organizador' || tipo === 'simulacro').every(n => Number((tag(fb, n).match(/maxlength="(\d+)"/) || [])[1]) === PROP_LIMITS[n]) && namesOf(fb).every(n => ALLOWED.includes(n)) && (tipo !== 'gimnasio' || !namesOf(fb).includes('organizador') && !namesOf(fb).includes('fecha_evento'))));
+      const promesas = [{ n: 'simulacros', t: sim }, { n: 'gimnasios', t: gym }].concat(cities).filter(x => /lo añadimos|lo incluimos|te añadimos/i.test(x.t)).map(x => x.n).join(', ');
+      check('J9 ni simulacros, ni gimnasios, ni las 5 páginas de ciudad prometen inclusión incondicional («lo añadimos», «lo incluimos», «te añadimos»)', promesas === '', promesas);
+      const cardGym = (gym.match(/<a\b[^>]*href="#proponer"[^>]*>[\s\S]*?<\/a>/g) || []).some(a => a.includes('¿Tu ciudad no está?'));
+      check('J10 la tarjeta «¿Tu ciudad no está?» apunta a #proponer; simulacros y gimnasios conservan su mailto:; #organizadores y #alta existen',
+        cardGym && sim.includes('href="mailto:') && gym.includes('href="mailto:') && cnt(sim, /id="organizadores"/g) === 1 && cnt(gym, /id="alta"/g) === 1);
+      const sinEv = (sim.match(/<p\b[^>]*id="sin-eventos"[\s\S]*?<\/p>/) || [''])[0];
+      const iT = sim.indexOf('class="tiers"'), iF = sim.indexOf('<form class="b2b"'), iC = sim.indexOf('class="alta-cta"');
+      check('J11 el enlace de «sin-eventos» apunta a #publicar y en simulacros el formulario queda entre .tiers y .alta-cta', sinEv.includes('href="#publicar"') && !sinEv.includes('href="#organizadores"') && iT > 0 && iT < iF && iF < iC, [iT, iF, iC].join());
+      const vers = re => new Set(scan.flatMap(x => x.t.match(re) || []));
+      check('J12 las 14 páginas cargan el mismo main.js?v= y el mismo styles.css?v=',
+        scan.every(x => cnt(x.t, /main\.js\?v=\d+/g) >= 1 && cnt(x.t, /styles\.css\?v=\d+/g) >= 1) && vers(/main\.js\?v=\d+/g).size === 1 && vers(/styles\.css\?v=\d+/g).size === 1, [...vers(/main\.js\?v=\d+/g), ...vers(/styles\.css\?v=\d+/g)].join());
+      check('J13 privacidad: fecha 11 de octubre de 2026, fila de propuestas, aclaración de no-newsletter y comentario PENDIENTE del NIF; aviso legal: fecha y «Evento patrocinado»',
+        priv.includes('Última actualización: 11 de octubre de 2026') && priv.includes('No te apuntamos a ninguna lista de correo ni newsletter') && /art\. 6\.1\.b/.test(priv) && priv.includes('PENDIENTE: añadir aquí el NIF/CIF del responsable') &&
+        legal.includes('Última actualización: 11 de octubre de 2026') && /Evento patrocinado/.test(legal), [priv.includes('Última actualización: 11 de octubre de 2026'), priv.includes('No te apuntamos'), /art\. 6\.1\.b/.test(priv), legal.includes('Última actualización: 11 de octubre de 2026'), /Evento patrocinado/.test(legal)].join());
     }
   } catch (e) { /* abierto sin servir la raíz del repo: no se comprueba */ }
 }
