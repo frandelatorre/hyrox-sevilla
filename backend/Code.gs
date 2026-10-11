@@ -10,12 +10,13 @@
 
 const TZ = 'Europe/Madrid';
 
-// Versión del texto de consentimiento: el de TODOS los avisos de la web (plan y alertas) y el del email con el plan.
+// Versión del texto de consentimiento: el de TODOS los avisos de la web (plan y alertas) y el de los emails de bienvenida
+// (el del plan y el de los avisos, que comparten el párrafo de consentimiento: consentNote_ en Mail.gs).
 // Súbela cada vez que cambies cualquiera de ellos: queda guardada junto a la fecha de cada confirmación como prueba
 // de qué aceptó cada persona.
 const CONSENT_VERSION = '2026-10-v4';
 
-// Tipos de alta que acepta el formulario: `plan` (recibe el PDF y la secuencia) y `alertas` (solo avisos y campañas).
+// Tipos de alta que acepta el formulario: `plan` (recibe el PDF y la secuencia) y `alertas` (email de bienvenida de avisos y campañas).
 const SIGNUP_LEADS = ['plan', 'alertas'];
 // Intereses que puede marcar quien se apunta a las alertas (lista cerrada: lo demás se descarta).
 const INTERESTS = ['carreras', 'simulacros', 'gimnasios'];
@@ -31,10 +32,12 @@ const T = {
 
 const COLS = {
   'Suscriptores': ['id', 'fecha_alta', 'email', 'ciudad', 'carrera', 'origen', 'estado', 'marketing',
-    'fecha_confirmacion', 'consentimiento', 'fecha_baja', 'token', 'emails_confirmacion', 'secuencia', 'fecha_secuencia', 'intereses', 'lead'],
+    'fecha_confirmacion', 'consentimiento', 'fecha_baja', 'token', 'emails_confirmacion', 'secuencia', 'fecha_secuencia', 'intereses', 'lead',
+    'bienvenida'], // `bienvenida`: fecha del email de bienvenida de los avisos (vacío = no enviado)
   'Contactos': ['id', 'fecha', 'email', 'nombre', 'telefono', 'ciudad', 'estado', 'centro', 'fecha_cierre', 'comision', 'notas'],
   'Campañas': ['id', 'mes', 'fecha_envio', 'asunto', 'titulo', 'cuerpo', 'publi_activa', 'publi_titulo', 'publi_texto',
-    'publi_enlace', 'publi_boton', 'segmento_ciudad', 'estado', 'enviados', 'errores', 'fecha_fin', 'ingreso_publi'],
+    'publi_enlace', 'publi_boton', 'segmento_ciudad', 'estado', 'enviados', 'errores', 'fecha_fin', 'ingreso_publi',
+    'segmento_interes'], // vacío = todos; carreras, simulacros, gimnasios separados por comas
   'Envíos': ['fecha', 'campana', 'email', 'resultado'],
   'Registro': ['fecha', 'origen', 'detalle'],
 };
@@ -92,6 +95,37 @@ function inSegment_(seg, ciudad) {
   if (seg.all) return true;
   const k = provinceSlug_(ciudad);
   return !!k && seg.set[k] === true;
+}
+
+/** Texto libre (plural o singular, con o sin tildes y mayúsculas) → interés canónico de INTERESTS, o null. */
+function interestSlug_(v) {
+  const k = slug_(v);
+  return INTERESTS.find(i => i === k || i === k + 's') || null;
+}
+
+/**
+ * Segmento de intereses de una campaña (`segmento_interes`): lista separada por comas (`carreras, simulacros`). Vacío = todos.
+ * Igual que parseSegment_: lo que no se reconoce se ignora y se devuelve en `unknown`; si no queda ningún interés válido,
+ * `empty` es true. Nunca se interpreta «todos» como «todos»: es una errata más (y la campaña no se envía).
+ */
+function parseInterestSegment_(raw) {
+  const parts = String(raw === undefined || raw === null ? '' : raw).split(/[,;]/).map(p => p.trim()).filter(Boolean);
+  if (!parts.length) return { all: true, set: {}, unknown: [], empty: false };
+  const set = {}, unknown = [];
+  parts.forEach(p => { const k = interestSlug_(p); if (k) set[k] = true; else unknown.push(p); });
+  return { all: false, set, unknown, empty: !Object.keys(set).length };
+}
+
+/**
+ * ¿Entra este suscriptor en el segmento de intereses? Con intereses marcados, basta con que coincida alguno.
+ * Sin intereses: quien pidió el plan (o tiene `lead` vacío) recibe también las campañas dirigidas; una alta de alertas
+ * sin intereses solo recibe las campañas sin `segmento_interes`.
+ */
+function inInterestSegment_(seg, sub) {
+  if (seg.all) return true;
+  const mine = parseInterests_(sub.intereses);
+  if (mine.length) return mine.some(i => seg.set[i] === true);
+  return wantsPlan_(sub);
 }
 
 const CFG_DEFAULTS = [
@@ -158,9 +192,10 @@ function json_(obj) {
 /**
  * Alta de un solo paso, para el plan y para las alertas: quien pulsa el botón del formulario acepta recibir
  * comunicaciones (el aviso que lo acompaña lo dice) y se guardan la fecha y la versión del texto (CONSENT_VERSION).
- * `lead` = 'plan' (por defecto, web en caché) o 'alertas'. Solo el plan envía un email, en el acto y con el PDF;
- * las alertas quedan dadas de alta sin email ni PDF (reciben las campañas, no la secuencia). `intereses` es
- * una lista cerrada (INTERESTS). La columna `emails_confirmacion` cuenta los emails con el plan enviados (nombre heredado).
+ * `lead` = 'plan' (por defecto, web en caché) o 'alertas'. El plan envía un email en el acto, con el PDF;
+ * las alertas envían un único email de bienvenida (sin PDF, sin secuencia) la primera vez, y reciben las campañas.
+ * `intereses` es una lista cerrada (INTERESTS). La columna `emails_confirmacion` cuenta los emails con el plan enviados
+ * (nombre heredado); `bienvenida` guarda la fecha del email de bienvenida de los avisos. La carrera solo la fija el plan.
  */
 function handleSignup_(req) {
   const email = String(req.email || '').trim().toLowerCase();
@@ -177,7 +212,7 @@ function handleSignup_(req) {
   const lead = parseLead_(req.lead);
   if (!lead) return { ok: false, error: 'lead' };
   const intereses = parseInterests_(req.intereses);
-  const carrera = /^[a-z0-9-]{1,20}$/.test(String(req.carrera || '')) ? req.carrera : '';
+  const carrera = lead === 'plan' && /^[a-z0-9-]{1,20}$/.test(String(req.carrera || '')) ? req.carrera : ''; // las alertas ignoran la carrera
   const origen = String(req.origen || '').slice(0, 40);
 
   // La clave lleva el tipo de alta: pedir el plan justo después de apuntarse a las alertas no queda bloqueado
@@ -209,13 +244,11 @@ function handleSignup_(req) {
       if (lead === 'plan' || reset) {
         patch.carrera = carrera;
         patch.origen = origen;
-      } else if (carrera) {
-        patch.carrera = carrera; // las alertas no pisan el origen ni borran la carrera que ya tenía
-      }
+      } // las alertas sobre una fila existente no tocan ni la carrera ni el origen
       patch.intereses = (reset ? intereses : mergeInterests_(found.intereses, intereses)).join(',');
       // `lead` es monótono: plan > alertas. Quien ya pidió el plan no baja a alertas; tras una baja se parte de cero
       patch.lead = reset ? lead : ((lead === 'plan' || hadPlan) ? 'plan' : 'alertas');
-      if (found.estado !== 'Confirmado') Object.assign(patch, consent, { fecha_alta: now });
+      if (found.estado !== 'Confirmado') Object.assign(patch, consent, { fecha_alta: now, bienvenida: '' }); // vuelve a recibir la bienvenida de avisos
       else if (String(found.consentimiento) !== CONSENT_VERSION) Object.assign(patch, consent); // re-consentimiento con el texto nuevo
       if (reset || !found.token) patch.token = token_();
       if (reset) {
@@ -234,6 +267,7 @@ function handleSignup_(req) {
       sendPlan_(sub, row);
       return { ok: true, plan: cfg_().PLAN_URL };
     }
+    sendAlertsWelcome_(sub, row);
     return { ok: true };
   });
 }
@@ -284,6 +318,41 @@ function sendPlan_(sub, row) {
   }
 }
 
+/** ¿Es un alta de solo avisos? (`lead` = alertas; el plan y las filas antiguas con `lead` vacío no lo son.) */
+function isAlertsLead_(sub) {
+  return String(sub && sub.lead !== undefined && sub.lead !== null ? sub.lead : '').trim().toLowerCase() === 'alertas';
+}
+
+/**
+ * Email de bienvenida de los avisos: uno por alta (la fecha queda en `bienvenida`; vacío = no enviado). Solo a altas de
+ * alertas Confirmadas, con consentimiento y token. No escribe en «Envíos» (no cuenta como campaña ni como secuencia) ni
+ * toca `emails_confirmacion` (eso es del plan). Devuelve true si lo ha enviado ahora.
+ */
+function sendAlertsWelcome_(sub, row) {
+  if (!isAlertsLead_(sub) || sub.estado !== 'Confirmado' || sub.marketing !== 'SI' || !sub.token || toDate_(sub.bienvenida)) return false;
+  if (!canSend_(1)) { logError_('bienvenida', 'Sin cuota de email: ' + sub.email); return false; }
+  try {
+    const m = alertsWelcomeEmail_(sub);
+    mail_(sub.email, m.subject, m.html);
+    const ahora = new Date();
+    updateObj_(T.SUBS, row, { bienvenida: ahora });
+    sub.bienvenida = ahora;
+    return true;
+  } catch (err) {
+    logError_('bienvenida', err);
+    return false;
+  }
+}
+
+/** Reenvía la bienvenida de avisos a quien no la recibió (sin cuota o error), solo a altas de los últimos 7 días (máx. 20 por ejecución). */
+function retryAlertsWelcome_() {
+  const limit = Date.now() - 7 * 864e5;
+  table_(T.SUBS).rows
+    .filter(s => s.estado === 'Confirmado' && s.marketing === 'SI' && s.token && isAlertsLead_(s) && !toDate_(s.bienvenida) && +toDate_(s.fecha_alta) > limit)
+    .slice(0, 20)
+    .forEach(s => sendAlertsWelcome_(s, s._row));
+}
+
 /** Máximo 40 altas por hora en total: evita que alguien agote la cuota diaria de emails con el formulario. */
 function rateLimited_() {
   const cache = CacheService.getScriptCache();
@@ -328,7 +397,7 @@ function handleUnsub_(req) {
 // -------------------------------------------------------- Envío de campañas
 
 /**
- * Se ejecuta cada día (disparador). Reenvía los planes que no salieron (sin cuota), envía los emails de la secuencia
+ * Se ejecuta cada día (disparador). Reenvía los planes y las bienvenidas de avisos que no salieron (sin cuota), envía los emails de la secuencia
  * de bienvenida que toquen (van primero porque dependen del día exacto) y la campaña que toque.
  */
 function runDailyJob() {
@@ -336,6 +405,7 @@ function runDailyJob() {
   try {
     ensureSchema_();
     const retried = retryPlanEmails_();
+    retryAlertsWelcome_();
     sendSequence_(t0, retried);
     sendDueCampaign_(t0);
     setCfg_('ULTIMA_EJECUCION', new Date());
@@ -357,17 +427,24 @@ function retryPlanEmails_() {
 
 function sendDueCampaign_(t0) {
   const now = new Date();
-  const camp = table_(T.CAMP).rows.find(c =>
+  const due = table_(T.CAMP).rows.filter(c =>
     (c.estado === 'Programada' || c.estado === 'En curso') && toDate_(c.fecha_envio) && toDate_(c.fecha_envio) <= now);
-  if (!camp) return;
 
-  // Segmento por provincias. Si hay un segmento escrito pero ninguna provincia se reconoce (una errata), no se envía
-  // a nadie ni se da la campaña por enviada: queda como está y el aviso sale en el panel (Registro).
-  const seg = parseSegment_(camp.segmento_ciudad);
-  if (seg.unknown.length) logError_('segmento ' + camp.id, 'Provincia no reconocida: ' + seg.unknown.join(', '));
-  if (seg.empty) return;
+  // Segmento por provincias e intereses. Si hay un segmento escrito pero ninguna provincia (o ningún interés) se reconoce
+  // (una errata), no se envía a nadie ni se da la campaña por enviada: queda como está, el aviso sale en el panel (Registro)
+  // y se pasa a la siguiente campaña vencida (una errata no bloquea las demás). Solo se procesa UNA campaña por ejecución.
+  let camp = null, seg = null, iseg = null;
+  for (const c of due) {
+    const s1 = parseSegment_(c.segmento_ciudad), s2 = parseInterestSegment_(c.segmento_interes);
+    if (s1.unknown.length) logError_('segmento ' + c.id, 'Provincia no reconocida: ' + s1.unknown.join(', '));
+    if (s2.unknown.length) logError_('segmento ' + c.id, 'Interés no reconocido: ' + s2.unknown.join(', '));
+    if (s1.empty || s2.empty) continue;
+    camp = c; seg = s1; iseg = s2;
+    break;
+  }
+  if (!camp) return;
   const recipients = table_(T.SUBS).rows.filter(s =>
-    s.estado === 'Confirmado' && s.marketing === 'SI' && inSegment_(seg, s.ciudad));
+    s.estado === 'Confirmado' && s.marketing === 'SI' && inSegment_(seg, s.ciudad) && inInterestSegment_(iseg, s));
 
   const sendsSh = sheet_(T.SENDS);
   const prev = table_(T.SENDS).rows.filter(r => r.campana === camp.id);
@@ -518,6 +595,14 @@ function sendTestSequence() {
   Logger.log('Secuencia de prueba enviada a ' + me);
 }
 
+/** Menú: manda a tu cuenta el email de bienvenida de los avisos con datos de ejemplo (Sevilla, carreras y simulacros). No toca la hoja. */
+function sendTestAlertsWelcome() {
+  const me = Session.getEffectiveUser().getEmail();
+  const m = alertsWelcomeEmail_({ email: me, token: '0'.repeat(32), ciudad: 'sevilla', intereses: 'carreras,simulacros' });
+  mail_(me, '[PRUEBA] ' + m.subject, m.html);
+  Logger.log('Bienvenida de avisos de prueba enviada a ' + me);
+}
+
 // -------------------------------------------------------- Menú y utilidades
 
 function onOpen() {
@@ -525,6 +610,7 @@ function onOpen() {
     .addItem('Configurar (primera vez)', 'setup')
     .addItem('Enviar email de prueba a mi cuenta', 'sendTestCampaign')
     .addItem('Enviarme la secuencia de bienvenida (prueba)', 'sendTestSequence')
+    .addItem('Enviarme el email de bienvenida de avisos (prueba)', 'sendTestAlertsWelcome')
     .addItem('Ejecutar el envío ahora', 'runDailyJob')
     .addToUi();
 }
@@ -583,6 +669,12 @@ function setup() {
   list(T.CAMP, 'estado', ['Borrador', 'Programada', 'En curso', 'Enviada']);
   list(T.CAMP, 'publi_activa', ['SI', 'NO']);
 
+  // segmento_interes admite una lista separada por comas, así que no sirve un desplegable (requireValueInList). Tampoco una
+  // validación con fórmula: Google Sheets la rechaza según el idioma de la hoja. Se explica en la nota de la cabecera y un valor
+  // erróneo se avisa en el Registro al enviar (parseInterestSegment_). Solo se aplica al ejecutar setup, no con ensureSchema_.
+  const ci = COLS[T.CAMP].indexOf('segmento_interes') + 1;
+  sheet_(T.CAMP).getRange(1, ci).setNote('Vacío = todos. carreras, simulacros, gimnasios separados por comas. Se combina (Y) con segmento_ciudad.');
+
   const camp = sheet_(T.CAMP);
   if (camp.getLastRow() < 2) {
     const next = new Date(); next.setMonth(next.getMonth() + 1, 5); next.setHours(0, 0, 0, 0);
@@ -592,7 +684,7 @@ function setup() {
       titulo: 'Tu resumen del mes',
       cuerpo: 'Hola,\n\nEstas son las novedades del mes en el mundo de las carreras híbridas:\n\n- Calendario de carreras actualizado.\n- Un consejo de entrenamiento.\n\nTodo el detalle en [nuestra guía](https://ritmohibrido.com/calendario/).\n\nNos vemos en la meta.',
       publi_activa: 'NO', publi_titulo: '', publi_texto: '', publi_enlace: '', publi_boton: 'Más información',
-      segmento_ciudad: '', estado: 'Borrador', enviados: 0, errores: 0,
+      segmento_ciudad: '', segmento_interes: '', estado: 'Borrador', enviados: 0, errores: 0,
     });
   }
 
@@ -711,6 +803,13 @@ function toDate_(v) {
 
 function slug_(s) {
   return String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim();
+}
+
+/** Número de columna (1 = A) → letra de columna de la hoja (27 = AA). */
+function colLetter_(n) {
+  let s = '';
+  for (; n > 0; n = Math.floor((n - 1) / 26)) s = String.fromCharCode(65 + (n - 1) % 26) + s;
+  return s;
 }
 
 function canSend_(n) { return MailApp.getRemainingDailyQuota() >= n; }

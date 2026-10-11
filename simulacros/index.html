@@ -17,7 +17,7 @@
 <link rel="preload" href="../assets/fonts/barlow-400-normal-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="../assets/fonts/barlow-condensed-800-italic-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="../assets/fonts/fonts.css?v=9">
-<link rel="stylesheet" href="../assets/css/styles.css?v=12">
+<link rel="stylesheet" href="../assets/css/styles.css?v=13">
 </head>
 <body>
 <header class="site-header"><div class="wrap">
@@ -338,14 +338,37 @@
   <p class="note">Los eventos de esta lista los organizan gimnasios, clubes, federaciones y empresas independientes: no son carreras de HYROX y Ritmo Híbrido no los organiza. «Formato HYROX» indica que la propia organización lo describe como basado en ese formato; «Híbrida», «DEKA» y «Hyatlón» tienen formatos propios. Comprueba fecha, plazas, precio y reglamento en la web de cada organizador antes de apuntarte. HYROX, DEKA y Hyatlón son marcas de sus titulares y se mencionan solo para identificar el formato.</p>
 </div></section>
 
-<section>
-  <div class="wrap">
-    <div class="cta">
-      <div><h2>Llega <span>preparado</span></h2><p>Un simulacro rinde mucho más con un plan detrás. El nuestro es gratis, dura 16 semanas e incluye un medio simulacro y uno completo.</p></div>
-      <div><a class="btn" href="../plan/#alta">Prepárate para tu simulacro con el plan gratis →</a></div>
-    </div>
+<section id="avisos"><div class="wrap">
+  <div class="cta">
+    <div><h2 id="avisos-titulo">Avisos <span>de tu provincia</span></h2><p>Te avisamos por email de carreras, simulacros y gimnasios de tu provincia. Marca lo que te interesa.</p><p>¿Quieres prepararte para un simulacro? <a href="../plan/#alta">El plan de 16 semanas es gratis</a> e incluye un medio simulacro y uno completo.</p></div>
+    <form data-signup data-lead="alertas" aria-labelledby="avisos-titulo" novalidate>
+      <label class="fld">Email
+        <input type="email" name="email" required autocomplete="email" placeholder="tu@email.com">
+      </label>
+      <label class="fld">Provincia
+        <select name="provincia" required>
+          <option value="">Elige tu provincia</option>
+          <option value="barcelona">Barcelona</option><option value="bizkaia">Bizkaia</option>
+          <option value="madrid">Madrid</option><option value="malaga">Málaga</option>
+          <option value="sevilla">Sevilla</option><option value="valencia">Valencia</option>
+          <option value="otra">Fuera de España</option>
+        </select>
+      </label>
+      <fieldset class="ask">
+        <legend>¿De qué quieres que te avisemos? Marca al menos una.</legend>
+        <div class="opts opts-3">
+          <label class="opt"><input type="checkbox" name="intereses" value="carreras"><span>Carreras</span></label>
+          <label class="opt"><input type="checkbox" name="intereses" value="simulacros"><span>Simulacros</span></label>
+          <label class="opt"><input type="checkbox" name="intereses" value="gimnasios"><span>Gimnasios</span></label>
+        </div>
+      </fieldset>
+      <div class="hp" aria-hidden="true" style="position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden"><label>No rellenar<input type="text" name="ritmo_extra" tabindex="-1" autocomplete="off" data-lpignore="true" data-1p-ignore></label></div>
+      <p class="form-msg" role="alert" hidden></p>
+      <button type="submit" class="btn" aria-describedby="avisos-aviso">Apuntarme a los avisos</button>
+      <p class="fine" data-consent="2026-10-v4" id="avisos-aviso">Al pulsar «Apuntarme a los avisos», aceptas que Ritmo Híbrido use tu email y tu provincia para avisarte por email de novedades de carreras, simulacros y gimnasios de tu provincia según los intereses que marques y, además, para enviarte comunicaciones informativas y comerciales por email (novedades, consejos, calendario y ofertas propias y de centros colaboradores, a los que no cedemos tus datos). Puedes retirar tu consentimiento y darte de baja con un clic desde cualquier mensaje. Responsable: Ritmo Híbrido (info@ritmohibrido.com). Más información y tus derechos en la <a href="../privacidad/">política de privacidad</a>.</p>
+    </form>
   </div>
-</section>
+</div></section>
 
 <section class="alt" id="organizadores"><div class="wrap">
   <div class="head"><h2>¿Organizas <span>un simulacro</span>?</h2><p>Llega a quien está preparando su carrera. Elige cómo aparecer.</p></div>
@@ -379,6 +402,6 @@
   <p class="legal">© <span data-year>2026</span> Ritmo Híbrido.com. Web independiente, sin relación con HYROX World GmbH ni con sus eventos oficiales. HYROX es una marca registrada de su titular y se menciona solo para identificar la competición.</p>
 </div></footer>
 <script src="../assets/js/config.js?v=8"></script>
-<script src="../assets/js/main.js?v=11"></script>
+<script src="../assets/js/main.js?v=12"></script>
 </body>
 </html>

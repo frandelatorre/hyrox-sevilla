@@ -160,46 +160,61 @@ document.querySelectorAll('form[data-signup]').forEach(form => {
   const msg = $('.form-msg');
   const say = (text, bad) => { msg.textContent = text; msg.dataset.bad = bad ? '1' : ''; msg.hidden = !text; };
 
+  // Al terminar bien, el formulario se sustituye por un aviso que recibe el foco (así lo anuncia el lector de pantalla).
+  const done = html => {
+    form.innerHTML = '<div class="form-done" role="status" tabindex="-1">' + html + '</div>';
+    const box = form.querySelector('.form-done');
+    if (box) box.focus();
+  };
+
   form.addEventListener('submit', async e => {
     e.preventDefault();
     const f = Object.fromEntries(new FormData(form).entries());
-    if (!f.provincia) return say('Elige tu provincia.', true);
+    if (!f.provincia) { say('Elige tu provincia.', true); if (prov) prov.focus(); return; }
 
     // Los checkboxes repetidos (name="intereses") se leen aparte: Object.fromEntries se quedaría solo con el último.
+    // Se leen antes de deshabilitar el botón. En los avisos hay que marcar al menos un tema (el backend es permisivo).
     const intereses = new FormData(form).getAll('intereses');
+    if (lead === 'alertas' && !intereses.length) {
+      say('Marca al menos un tema.', true);
+      const first = $('input[name="intereses"]');
+      if (first) first.focus();
+      return;
+    }
 
     const btn = $('button[type="submit"]'), label = btn.textContent;
     btn.disabled = true; btn.textContent = 'Enviando…'; say('');
     try {
       const out = await rhApi({
         // El backend sigue llamando `ciudad` al campo (así lo entienden también las versiones antiguas); lleva la provincia.
+        // Los avisos no llevan carrera (no hay selector): `f.carrera` queda vacío.
         action: 'signup', email: f.email, ciudad: f.provincia, carrera: f.carrera || '', lead, intereses,
         web: f.ritmo_extra || '', ms: Date.now() - t0, origen: location.pathname.replace(/\/$/, '') || '/',
       });
       if (out === null) { // demostración: sin backend
-        form.innerHTML = lead === 'plan'
+        done(lead === 'plan'
           ? '<p class="form-ok">¡Hecho! (modo demostración)</p>' +
             '<a class="btn" href="' + (form.dataset.plan || '') + '" download>Descargar el plan (PDF)</a>'
-          : '<p class="form-ok">¡Hecho! (modo demostración)</p>';
+          : '<p class="form-ok">¡Hecho! (modo demostración)</p>');
       } else if (out.ok) {
         if (lead === 'plan') {
           const pdf = out.plan || form.dataset.plan;
-          form.innerHTML = '<p class="form-ok">¡Listo! Ya tienes el plan.</p>' +
+          done('<p class="form-ok">¡Listo! Ya tienes el plan.</p>' +
             (pdf ? '<a class="btn" href="' + pdf + '" download>Descargar el plan (PDF)</a>' : '') +
-            '<p class="form-sub">También te lo hemos enviado por email. Si no lo ves en unos minutos, mira en spam o promociones.</p>';
+            '<p class="form-sub">También te lo hemos enviado por email. Si no lo ves en unos minutos, mira en spam o promociones.</p>');
         } else {
-          // Cualquier otro tipo de alta (avisos): sin PDF y sin prometer ningún email enviado.
-          form.innerHTML = '<p class="form-ok">¡Listo! Estás apuntado a los avisos.</p>' +
-            '<p class="form-sub">Te escribiremos al email que has indicado. Puedes darte de baja con un clic desde cualquier mensaje.</p>';
+          // Cualquier otro tipo de alta (avisos): sin PDF. La primera vez, el backend envía un email de bienvenida con el enlace de baja.
+          done('<p class="form-ok">¡Listo! Estás apuntado a los avisos.</p>' +
+            '<p class="form-sub">Te escribiremos a ese email cuando haya novedades de lo que has marcado. Si es la primera vez que te apuntas, recibirás también un email de bienvenida con el enlace de baja; si no lo ves en unos minutos, mira en spam o promociones.</p>');
         }
       } else {
         const errs = { email: 'Revisa el email: no parece válido.', ciudad: 'Elige tu provincia.', lead: 'No hemos podido procesar tu solicitud. Recarga la página e inténtalo de nuevo.', busy: 'Hay mucha demanda ahora mismo. Inténtalo de nuevo en unos minutos.' };
         say(errs[out.error] || 'No hemos podido enviarlo. Inténtalo de nuevo en un momento.', true);
-        btn.disabled = false; btn.textContent = label;
+        btn.disabled = false; btn.textContent = label; btn.focus();
       }
     } catch (err) {
       say('No hemos podido conectar. Revisa tu conexión e inténtalo de nuevo.', true);
-      btn.disabled = false; btn.textContent = label;
+      btn.disabled = false; btn.textContent = label; btn.focus();
     }
   });
 });

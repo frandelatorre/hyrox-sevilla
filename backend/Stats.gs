@@ -126,11 +126,13 @@ function buildStats_(d, nowDate) {
   const campSent = id => sendsOk.filter(r => r.campana === id).length;
   const emails = camps.map(c => {
     const seg = parseSegment_(c.segmento_ciudad);
-    const dest = seg.empty ? 0 : active.filter(s => s.marketing === 'SI' && inSegment_(seg, s.ciudad)).length;
+    const iseg = parseInterestSegment_(c.segmento_interes);
+    const dest = (seg.empty || iseg.empty) ? 0 : active.filter(s => s.marketing === 'SI' && inSegment_(seg, s.ciudad) && inInterestSegment_(iseg, s)).length;
     const sent = c.estado === 'Enviada' || c.estado === 'En curso' ? campSent(c.id) : 0;
+    const provTxt = seg.all ? 'Todas' : Object.keys(seg.set).map(provinceName_).concat(seg.unknown).join(', ');
     return {
       id: c.id, mes: c.mes, asunto: c.asunto, estado: c.estado, publi: String(c.publi_activa).toUpperCase() === 'SI',
-      segmento: seg.all ? 'Todas' : Object.keys(seg.set).map(provinceName_).concat(seg.unknown).join(', '),
+      segmento: iseg.all ? provTxt : provTxt + ' · Intereses: ' + Object.keys(iseg.set).concat(iseg.unknown).join(', '),
       fecha: toDate_(c.fecha_envio) ? Utilities.formatDate(toDate_(c.fecha_envio), TZ, 'dd/MM/yyyy') : '',
       destinatarios: dest, enviados: sent, errores: Number(c.errores) || 0,
       pendientes: c.estado === 'Enviada' ? 0 : Math.max(0, dest - sent),
@@ -186,13 +188,16 @@ function systemInfo_(d) {
     { k: 'Contraseña del panel', ok: !!PropertiesService.getScriptProperties().getProperty('PANEL_PASSWORD'), msg: 'Falta PANEL_PASSWORD' },
     { k: 'URL de la web', ok: /^https:\/\//.test(cfg.SITE_URL || ''), msg: 'Config > SITE_URL debe empezar por https://' },
   ];
-  // Solo cuentan quienes pidieron el plan: las altas de alertas no reciben email, así que no es un fallo
+  // sinEmailPlan: solo cuentan quienes pidieron el plan (las altas de alertas no reciben el PDF)
   const sinPlan = d.subs.filter(s => s.estado === 'Confirmado' && wantsPlan_(s) && !Number(s.emails_confirmacion || 0));
+  // sinBienvenida: altas de avisos Confirmadas a las que aún no ha salido el email de bienvenida (se reintenta cada día durante 7 días)
+  const sinBienvenida = d.subs.filter(s => s.estado === 'Confirmado' && isAlertsLead_(s) && !toDate_(s.bienvenida));
   return {
     cuotaRestante: MailApp.getRemainingDailyQuota(),
     triggers,
     ultimaEjecucion: toDate_(cfg.ULTIMA_EJECUCION) ? toDate_(cfg.ULTIMA_EJECUCION).toISOString() : null,
     sinEmailPlan: sinPlan.length,
+    sinBienvenida: sinBienvenida.length,
     checks,
     filas: { suscriptores: d.subs.length, contactos: d.leads.length, campanas: d.camps.length, envios: d.sends.length },
     errores: d.log.filter(r => toDate_(r.fecha) && +toDate_(r.fecha) > week).slice(-15).reverse()

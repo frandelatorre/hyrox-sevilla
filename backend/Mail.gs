@@ -74,9 +74,14 @@ function layout_(o) {
     '</table></td></tr></table></body></html>';
 }
 
+/** Párrafo de consentimiento de los emails de bienvenida (plan y avisos). `prefijo` = cómo empieza: «Al pedir el plan», «Al apuntarte a los avisos». Cubierto por CONSENT_VERSION. */
+function consentNote_(prefijo) {
+  return '<p style="margin:0 0 16px;font-size:14px;color:' + MAIL_C.mut + '">' + esc_(prefijo) + ' aceptaste recibir, de vez en cuando, comunicaciones informativas y comerciales por email de Ritmo Híbrido y de centros colaboradores (novedades, consejos, calendario y ofertas), sin que cedamos tus datos a esos centros. Puedes retirar tu consentimiento cuando quieras con un clic al pie de este email.</p>';
+}
+
 function welcomeEmail_(sub) {
   const c = cfg_();
-  const consent = '<p style="margin:0 0 16px;font-size:14px;color:' + MAIL_C.mut + '">Al pedir el plan aceptaste recibir, de vez en cuando, comunicaciones informativas y comerciales por email de Ritmo Híbrido y de centros colaboradores (novedades, consejos, calendario y ofertas), sin que cedamos tus datos a esos centros. Puedes retirar tu consentimiento cuando quieras con un clic al pie de este email.</p>';
+  const consent = consentNote_('Al pedir el plan');
   return layout_({
     preheader: 'Aquí tienes tu plan de 16 semanas.',
     title: 'Aquí tienes tu plan',
@@ -87,6 +92,36 @@ function welcomeEmail_(sub) {
     reason: 'Recibes este email porque alguien pidió el plan con esta dirección en ritmohibrido.com. Si no has sido tú, date de baja con un clic y no recibirás nada más.',
     unsubUrl: sub.token ? c.SITE_URL + '/baja/?t=' + sub.token : '',
   });
+}
+
+/** Lista en español: «a», «a y b», «a, b y c». */
+function listEs_(items) {
+  return items.length < 2 ? items.join('') : items.slice(0, -1).join(', ') + ' y ' + items[items.length - 1];
+}
+
+/**
+ * Email de bienvenida de quien se apunta solo a los avisos (lead alertas): confirma el alta con su zona e intereses,
+ * enseña el calendario y el plan gratis, y deja la baja a un clic. Sin PDF y sin enlaces de afiliado. Devuelve { subject, html }.
+ */
+function alertsWelcomeEmail_(sub) {
+  const c = cfg_();
+  const slug = provinceSlug_(sub.ciudad);
+  const zona = slug === 'otra' ? 'fuera de España' : (slug ? provinceName_(slug) : String(sub.ciudad || ''));
+  const intereses = parseInterests_(sub.intereses);
+  const apuntado = 'Te has apuntado a los avisos de **' + zona + '**' + (intereses.length ? ' sobre **' + listEs_(intereses) + '**' : '') + '.';
+  const body = richText_(apuntado + '\n\n' +
+    (intereses.length ? 'Te escribiremos cuando haya novedades de lo que has marcado.' : 'Te escribiremos cuando haya novedades.') + '\n\n' +
+    'Mientras tanto, tienes el [calendario de carreras](' + c.SITE_URL + '/calendario/) y, si todavía no lo tienes, el [plan de 16 semanas](' + c.SITE_URL + '/plan/), que es gratis.');
+  return {
+    subject: 'Ya estás apuntado a los avisos de Ritmo Híbrido',
+    html: layout_({
+      preheader: 'Confirmación de tu alta y cómo darte de baja.',
+      title: 'Ya estás apuntado',
+      bodyHtml: body + consentNote_('Al apuntarte a los avisos'),
+      reason: 'Recibes este email porque alguien se apuntó a los avisos de ritmohibrido.com con esta dirección. Si no has sido tú, date de baja con un clic y no recibirás nada más; si lo ignoras, seguirás en la lista.',
+      unsubUrl: c.SITE_URL + '/baja/?t=' + sub.token,
+    }),
+  };
 }
 
 function campaignEmail_(camp, sub) {
