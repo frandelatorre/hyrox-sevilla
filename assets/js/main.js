@@ -137,6 +137,15 @@ if (document.body.dataset.provincia && pageProvince()) document.querySelectorAll
   if (/(^|\/)plan\/$/.test(path)) a.setAttribute('href', path + '?provincia=' + pageProvince() + (hash ? '#' + hash : ''));
 });
 
+// Página de origen del alta. Si la URL trae ?utm_source=... (p. ej. el enlace de la bio de Instagram) se añade la fuente:
+// «/plan · instagram». Se lee de la URL en el momento de enviar y no se guarda nada en el navegador (ver /cookies/).
+// No hace falta cambiar el backend: `origen` es texto libre de hasta 40 caracteres, por eso la fuente se corta a 12.
+const pageOrigin = () => {
+  const path = location.pathname.replace(/\/$/, '') || '/';
+  const src = (new URLSearchParams(location.search).get('utm_source') || '').toLowerCase().replace(/[^a-z0-9_-]/g, '').slice(0, 12);
+  return src ? path + ' · ' + src : path;
+};
+
 // Ayudas compartidas por los formularios de alta (data-signup) y de propuestas (data-b2b)
 function fillProvinces(select, placeholder, selected) {
   // El HTML trae unas pocas opciones de respaldo; con JS se sustituyen por la lista completa, ordenada A–Z.
@@ -197,7 +206,7 @@ document.querySelectorAll('form[data-signup]').forEach(form => {
         // El backend sigue llamando `ciudad` al campo (así lo entienden también las versiones antiguas); lleva la provincia.
         // Los avisos no llevan carrera (no hay selector): `f.carrera` queda vacío.
         action: 'signup', email: f.email, ciudad: f.provincia, carrera: f.carrera || '', lead, intereses,
-        web: f.ritmo_extra || '', ms: Date.now() - t0, origen: location.pathname.replace(/\/$/, '') || '/',
+        web: f.ritmo_extra || '', ms: Date.now() - t0, origen: pageOrigin(),
       });
       if (out === null) { // demostración: sin backend
         done(lead === 'plan'
@@ -272,7 +281,7 @@ document.querySelectorAll('form[data-b2b]').forEach(form => {
       action: 'propuesta', tipo, nombre: v('nombre'), organizador: v('organizador'), email: v('email'), provincia: v('provincia'),
       localidad: v('localidad'), fecha_evento: v('fecha_evento'), url: v('url'), mensaje: v('mensaje'), rol: v('rol'),
       destacado: !!(form.elements.destacado && form.elements.destacado.checked), aviso: aviso ? aviso.dataset.aviso : '',
-      hp: v('hp'), ms: Date.now() - t0, origen: location.pathname.replace(/\/$/, '') || '/',
+      hp: v('hp'), ms: Date.now() - t0, origen: pageOrigin(),
     };
     btn.disabled = true; btn.textContent = 'Enviando…'; say('');
     try {

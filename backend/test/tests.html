@@ -1197,9 +1197,19 @@ async function run() {
       const vers = re => new Set(scan.flatMap(x => x.t.match(re) || []));
       check('J12 las 14 páginas cargan el mismo main.js?v= y el mismo styles.css?v=',
         scan.every(x => cnt(x.t, /main\.js\?v=\d+/g) >= 1 && cnt(x.t, /styles\.css\?v=\d+/g) >= 1) && vers(/main\.js\?v=\d+/g).size === 1 && vers(/styles\.css\?v=\d+/g).size === 1, [...vers(/main\.js\?v=\d+/g), ...vers(/styles\.css\?v=\d+/g)].join());
-      check('J13 privacidad: fecha 11 de octubre de 2026, fila de propuestas, aclaración de no-newsletter y comentario PENDIENTE del NIF; aviso legal: fecha y «Evento patrocinado»',
-        priv.includes('Última actualización: 11 de octubre de 2026') && priv.includes('No te apuntamos a ninguna lista de correo ni newsletter') && /art\. 6\.1\.b/.test(priv) && priv.includes('PENDIENTE: añadir aquí el NIF/CIF del responsable') &&
-        legal.includes('Última actualización: 11 de octubre de 2026') && /Evento patrocinado/.test(legal), [priv.includes('Última actualización: 11 de octubre de 2026'), priv.includes('No te apuntamos'), /art\. 6\.1\.b/.test(priv), legal.includes('Última actualización: 11 de octubre de 2026'), /Evento patrocinado/.test(legal)].join());
+      check('J13 privacidad: fecha 12 de octubre de 2026, fila de propuestas, aclaración de no-newsletter y comentario PENDIENTE del NIF; aviso legal: fecha y «Evento patrocinado»',
+        priv.includes('Última actualización: 12 de octubre de 2026') && priv.includes('No te apuntamos a ninguna lista de correo ni newsletter') && /art\. 6\.1\.b/.test(priv) && priv.includes('PENDIENTE: añadir aquí el NIF/CIF del responsable') &&
+        legal.includes('Última actualización: 11 de octubre de 2026') && /Evento patrocinado/.test(legal), [priv.includes('Última actualización: 12 de octubre de 2026'), priv.includes('No te apuntamos'), /art\. 6\.1\.b/.test(priv), legal.includes('Última actualización: 11 de octubre de 2026'), /Evento patrocinado/.test(legal)].join());
+
+      // J14: la fuente de la visita (?utm_source=) se añade al origen del alta sin guardar nada en el navegador
+      const mainJs = await (await fetch('../../assets/js/main.js')).text();
+      const po = (mainJs.match(/const pageOrigin = \(\) => \{[\s\S]*?\n\};/) || [''])[0];
+      const origenDe = (pathname, search) => { const location = { pathname, search }; return new Function('location', po + '; return pageOrigin();')(location); };
+      const o1 = origenDe('/plan/', '?utm_source=instagram'), o2 = origenDe('/plan/', ''), o3 = origenDe('/', '?utm_source=Instagram'),
+        o4 = origenDe('/carreras/barcelona-2026/', '?utm_source=a_very_long_source_name'), o5 = origenDe('/plan/', '?utm_source=%3Cscript%3E%3D%22x');
+      check('J14 pageOrigin: «/plan · instagram» con fuente, «/plan» sin ella, minúsculas, ≤40 caracteres y sin símbolos peligrosos; sin localStorage/sessionStorage/cookie',
+        po !== '' && o1 === '/plan · instagram' && o2 === '/plan' && o3 === '/ · instagram' && o4.length <= 40 && o4.startsWith('/carreras/barcelona-2026 · ') && !/[<>="]/.test(o5) &&
+        !/localStorage|sessionStorage|document\.cookie/.test(po) && (mainJs.match(/origen: pageOrigin\(\)/g) || []).length === 2 && !/origen: location\.pathname/.test(mainJs), [o1, o2, o3, o4, o5].join(' | '));
     }
   } catch (e) { /* abierto sin servir la raíz del repo: no se comprueba */ }
 }
